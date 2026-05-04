@@ -63,13 +63,20 @@ def main() -> int:
         return 0
 
     # 500건씩 batch UPSERT (Supabase 한 번에 크게 보내면 timeout 가능)
-    BATCH = 500
-    for i in range(0, len(sales), BATCH):
+    BATCH = 100
+    total_sale = len(sales)
+    for i in range(0, total_sale, BATCH):
         upsert_records(client, "sale_records", sales[i:i+BATCH])
-    for i in range(0, len(rents), BATCH):
-        upsert_records(client, "rent_records", rents[i:i+BATCH])
+        if (i // BATCH) % 10 == 0:
+            logger.info("매매 UPSERT 진행: %d/%d", min(i+BATCH, total_sale), total_sale)
 
-    logger.info("백필 완료: 매매 %d / 전세 %d UPSERT", len(sales), len(rents))
+    total_rent = len(rents)
+    for i in range(0, total_rent, BATCH):
+        upsert_records(client, "rent_records", rents[i:i+BATCH])
+        if (i // BATCH) % 10 == 0:
+            logger.info("전월세 UPSERT 진행: %d/%d", min(i+BATCH, total_rent), total_rent)
+
+    logger.info("백필 완료: 매매 %d / 전세 %d UPSERT", total_sale, total_rent)
     return 0
 
 

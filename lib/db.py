@@ -1,7 +1,13 @@
 """Supabase Postgres 클라이언트 래퍼."""
+import logging
+import time
 from typing import Optional
 
 from supabase import Client, create_client
+
+logger = logging.getLogger(__name__)
+
+UPSERT_RETRY_BACKOFFS = [1, 3, 10]
 
 
 def get_client(url: str, service_role_key: str) -> Client:
@@ -13,14 +19,27 @@ def upsert_records(client: Client, table: str, records: list[dict]) -> None:
     """sale_records / rent_records UPSERT (id 충돌 시 무시).
 
     on_conflict='id' + ignore_duplicates=True로 ON CONFLICT DO NOTHING 동작.
+    Cloudflare 5xx 등 일시 장애 시 지수 백오프 재시도.
     """
     if not records:
         return
-    client.table(table).upsert(
-        records,
-        on_conflict="id",
-        ignore_duplicates=True,
-    ).execute()
+
+    last_exc = None
+    for delay in [0] + UPSERT_RETRY_BACKOFFS:
+        if delay:
+            time.sleep(delay)
+        try:
+            client.table(table).upsert(
+                records,
+                on_conflict="id",
+                ignore_duplicates=True,
+            ).execute()
+            return
+        except Exception as e:
+            last_exc = e
+            logger.warning("UPSERT 실패 (재시도): %s — %s", table, str(e)[:200])
+            continue
+    raise RuntimeError(f"UPSERT 실패 (4회 시도): {table} — {last_exc}")
 
 
 def load_alert_rules(client: Client) -> list[dict]:
