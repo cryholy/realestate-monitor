@@ -77,7 +77,7 @@ def ymd_list(months_back: int) -> list[str]:
 
 
 def collect_records(service_key: str, months: int) -> tuple[list[dict], list[dict]]:
-    """8개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착."""
+    """9개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착."""
     sales: list[dict] = []
     rents: list[dict] = []
 

@@ -50,7 +50,7 @@ def main() -> int:
             return 2
         client = get_client(url, key)
 
-    logger.info("백필 시작: %d개월 × 8개 구 × 매매·전세", args.months)
+    logger.info("백필 시작: %d개월 × 9개 구 × 매매·전세", args.months)
     sales, rents = collect_records(service_key, args.months)
     logger.info("수집: 매매 %d건, 전세 %d건", len(sales), len(rents))
 

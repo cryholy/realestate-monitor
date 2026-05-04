@@ -1,6 +1,6 @@
 # realestate_monitor
 
-서울 8개 구(성동·광진·마포·서초·강남·송파·용산·강동) 아파트 매매·전월세 거래를 매일 Supabase에 누적하고, 관심 매물의 가격·전세가율 임계값 도달 시 텔레그램으로 알림을 보낸다. 사이클·갭 분석은 Metabase 대시보드에서 시각화.
+서울 9개 구(성동·광진·마포·서초·강남·송파·용산·동작·강동) 아파트 매매·전월세 거래를 매일 Supabase에 누적하고, 관심 매물의 가격·전세가율 임계값 도달 시 텔레그램으로 알림을 보낸다. 사이클·갭 분석은 Supabase Studio Reports에서 시각화.
 
 ## 인프라
 
@@ -49,7 +49,7 @@ python3.11 -m pip install --user -r requirements.txt
 
 ```bash
 python3.11 scripts/backfill.py --months 12
-# ~5분 소요, 8개 구 × 12개월 × 매매·전세 = 192 API 호출
+# ~5분 소요, 9개 구 × 12개월 × 매매·전세 = 216 API 호출
 ```
 
 ### 6. 관심 매물 등록 (Supabase Studio)

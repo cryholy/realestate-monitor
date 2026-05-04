@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 8개 구(성동·광진·마포·서초·강남·송파·용산·강동)의 매매·전월세 거래를 매일 Supabase에 누적하고, `alert_rules` 테이블에 등록된 관심 매물의 가격 임계값/전세가율 임계값 도달 시 텔레그램 알림을 발송하며, Metabase로 사이클·갭 분석을 시각화한다.
+**Goal:** 9개 구(성동·광진·마포·서초·강남·송파·용산·동작·강동)의 매매·전월세 거래를 매일 Supabase에 누적하고, `alert_rules` 테이블에 등록된 관심 매물의 가격 임계값/전세가율 임계값 도달 시 텔레그램 알림을 발송하며, Metabase로 사이클·갭 분석을 시각화한다.
 
 **Architecture:** GitHub Actions cron(09:00·18:00 KST) → Python collector → 국토부 API → Supabase Postgres UPSERT → edge 트리거 평가 → Telegram. 단지 식별은 `apt_seq` 정확 매칭. dedup은 Supabase `alerts_sent` 테이블.
 
@@ -25,7 +25,7 @@ labs/realestate_monitor/
 ├── sql/
 │   ├── 001_initial_schema.sql   # 4 테이블 + 인덱스
 │   ├── 002_views.sql            # v_complexes, v_alert_rules_check, MV 2개
-│   └── seed_districts.sql       # 8개 구 LAWD_CD seed (참고용 — 실 코드는 collector에서 사용)
+│   └── seed_districts.sql       # 9개 구 LAWD_CD seed (참고용 — 실 코드는 collector에서 사용)
 ├── scripts/
 │   ├── backfill.py              # 1년 백필 1회성
 │   └── seed_alerts_sent.py      # 백필 후 dedup 키 미리 채우기
@@ -1855,7 +1855,7 @@ $$;
 - [ ] **Step 3: seed_districts.sql** (참고용 — 실 코드는 collector에서 사용)
 
 ```sql
--- 8개 구 LAWD_CD 매핑 (참고용 주석)
+-- 9개 구 LAWD_CD 매핑 (참고용 주석 — 실 코드는 collector.py의 DISTRICT_LAWD_CDS)
 --   11200 = 성동구
 --   11215 = 광진구
 --   11440 = 마포구
@@ -1863,6 +1863,7 @@ $$;
 --   11680 = 강남구
 --   11710 = 송파구
 --   11170 = 용산구
+--   11590 = 동작구
 --   11740 = 강동구
 -- collector.py의 DISTRICT_LAWD_CDS에서 동일 값 사용.
 ```
@@ -1938,6 +1939,7 @@ DISTRICT_LAWD_CDS = [
     ("11680", "강남구"),
     ("11710", "송파구"),
     ("11170", "용산구"),
+    ("11590", "동작구"),
     ("11740", "강동구"),
 ]
 
@@ -1966,7 +1968,7 @@ def ymd_list(months_back: int) -> list[str]:
 
 
 def collect_records(service_key: str, months: int) -> tuple[list[dict], list[dict]]:
-    """8개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착."""
+    """9개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착."""
     sales: list[dict] = []
     rents: list[dict] = []
     
@@ -2170,7 +2172,7 @@ def main() -> int:
     new_rents: list[dict] = []
     
     if not args.skip_fetch:
-        logger.info("데이터 수집 시작 (직전 %d개월, 8개 구)", args.backfill_months)
+        logger.info("데이터 수집 시작 (직전 %d개월, %d개 구)", args.backfill_months, len(DISTRICT_LAWD_CDS))
         sales, rents = collect_records(service_key, args.backfill_months)
         logger.info("수집 완료: 매매 %d건, 전월세 %d건", len(sales), len(rents))
         
@@ -2298,7 +2300,7 @@ def main() -> int:
             return 2
         client = get_client(url, key)
     
-    logger.info("백필 시작: %d개월 × 8개 구 × 매매·전세", args.months)
+    logger.info("백필 시작: %d개월 × 9개 구 × 매매·전세", args.months)
     sales, rents = collect_records(service_key, args.months)
     logger.info("수집: 매매 %d건, 전세 %d건", len(sales), len(rents))
     
@@ -2559,7 +2561,7 @@ git commit -m "feat(realestate_monitor): GitHub Actions cron workflow (09/18시 
 ```markdown
 # realestate_monitor
 
-서울 8개 구(성동·광진·마포·서초·강남·송파·용산·강동) 아파트 매매·전월세 거래를 매일 Supabase에 누적하고, 관심 매물의 가격·전세가율 임계값 도달 시 텔레그램으로 알림을 보낸다. 사이클·갭 분석은 Metabase 대시보드에서 시각화.
+서울 9개 구(성동·광진·마포·서초·강남·송파·용산·동작·강동) 아파트 매매·전월세 거래를 매일 Supabase에 누적하고, 관심 매물의 가격·전세가율 임계값 도달 시 텔레그램으로 알림을 보낸다. 사이클·갭 분석은 Supabase Studio Reports에서 시각화.
 
 ## 인프라
 
@@ -2608,7 +2610,7 @@ python3.11 -m pip install --user -r requirements.txt
 
 ```bash
 python3.11 scripts/backfill.py --months 12
-# ~5분 소요, 8개 구 × 12개월 × 매매·전세 = 192 API 호출
+# ~5분 소요, 9개 구 × 12개월 × 매매·전세 = 216 API 호출
 ```
 
 ### 6. 관심 매물 등록 (Supabase Studio)
@@ -2811,7 +2813,7 @@ SELECT count(*) FROM rent_records;
 SELECT sgg_cd, count(*) FROM sale_records GROUP BY sgg_cd ORDER BY 1;
 ```
 
-8개 구 모두 데이터 존재 확인.
+9개 구 모두 데이터 존재 확인.
 
 ---
 
@@ -2963,7 +2965,7 @@ Admin → Databases → Add database → PostgreSQL
 
 - [ ] **Step 4: 대시보드 2 (시장 개요) 생성**
 
-차트 2-1 (8개 구 거래량), 2-2 (평형별 시세).
+차트 2-1 (9개 구 거래량), 2-2 (평형별 시세).
 
 - [ ] **Step 5: 대시보드 3 (상세 분석)**
 

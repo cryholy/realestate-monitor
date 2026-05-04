@@ -3,7 +3,7 @@
 작성일: 2026-05-04
 대상: `/Users/joel/Claude/labs/realestate_monitor/` (전면 재작성)
 
-목적이 단순 알림에서 **8개 구 데이터 누적 + 분석 대시보드 + 갭 알림**으로 확장되었다. 기존 로컬 코드(`monitor.py`, `state.json`, `config.json`, `com.joel.realestate-monitor.plist`)는 **삭제하고 신규 작성**한다. 기존 docs (`2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md`)는 역사 기록으로 유지.
+목적이 단순 알림에서 **9개 구 데이터 누적 + 분석 대시보드 + 갭 알림**으로 확장되었다. 기존 로컬 코드(`monitor.py`, `state.json`, `config.json`, `com.joel.realestate-monitor.plist`)는 **삭제하고 신규 작성**한다. 기존 docs (`2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md`)는 역사 기록으로 유지.
 
 ---
 
@@ -11,7 +11,7 @@
 
 | 항목 | 결정 |
 |---|---|
-| 모니터링 구 | **8개 구**: 성동·광진·마포·서초·강남·송파·용산·강동 |
+| 모니터링 구 | **9개 구**: 성동·광진·마포·서초·강남·송파·용산·동작·강동 |
 | 데이터 소스 | 국토부 매매 + 전월세 API (분석 가치 있는 모든 필드 누적) |
 | 백필 | 1년 (1회성 수동 실행) + 일일 누적 |
 | 백필 알림 | **없음** — `alerts_sent`에 dedup 키 미리 채워 폭격 방지 |
@@ -37,7 +37,7 @@
                ▼
    ┌──────────────────────────────────┐
    │ python3.11 collector.py          │
-   │  ├─ 국토부 API (8개 구 × 매매·전세) │
+   │  ├─ 국토부 API (9개 구 × 매매·전세) │
    │  ├─ XML 파싱 + 분석 필드 전체 추출 │
    │  ├─ Supabase UPSERT               │
    │  ├─ alert_rules 조회              │
@@ -96,7 +96,7 @@ labs/realestate_monitor/
 ├── sql/
 │   ├── 001_initial_schema.sql  # 4개 테이블 + 인덱스
 │   ├── 002_views.sql           # view + MV
-│   └── seed_districts.sql      # 8개 구 LAWD_CD seed
+│   └── seed_districts.sql      # 9개 구 LAWD_CD seed
 ├── scripts/
 │   ├── backfill.py             # 1년 백필 1회성
 │   └── seed_alerts_sent.py     # 백필 후 dedup 키 미리 채우기
@@ -348,12 +348,12 @@ CREATE INDEX idx_mv_monthly_rent ON mv_monthly_rent_stats (apt_seq, size_label, 
 [python3.11 scripts/backfill.py --months 12]
 
 for ymd in [202504..202405]:
-  for sgg_cd in [11200, 11215, 11440, 11650, 11680, 11710, 11170, 11740]:
+  for sgg_cd in [11200, 11215, 11440, 11650, 11680, 11710, 11170, 11590, 11740]:
     fetch_sales(sgg_cd, ymd)  → UPSERT sale_records
     fetch_rents(sgg_cd, ymd)  → UPSERT rent_records
     sleep(0.5)
 
-= 12 × 8 × 2 = 192 API 호출, ~5분
+= 12 × 9 × 2 = 216 API 호출, ~5분
 = ~144K rows = ~220MB
 ```
 
@@ -368,7 +368,7 @@ runner spawn → git checkout → pip install
         ↓
 collector.py
   ├─ STEP 1: Fetch 최근 2개월 (신고 시차 30일 고려)
-  │   = 8개 구 × 매매·전세 × 2개월 = 32 API 호출
+  │   = 9개 구 × 매매·전세 × 2개월 = 36 API 호출
   ├─ STEP 2: UPSERT
   │   INSERT ... ON CONFLICT (id) DO NOTHING
   │   → 신규 INSERT된 row만 다음 단계 후보
@@ -539,7 +539,7 @@ def match_alert_rules(record: dict, rules: list[dict]) -> list[dict]:
 | 대시보드 | 목적 | 핵심 차트 |
 |---|---|---|
 | 1. 관심 매물 모니터 | 매일 보는 화면 | 시세·갭 추이, 사이클 시그널 |
-| 2. 시장 개요 | 주 1회 시장 흐름 | 8개 구 거래량·시세 |
+| 2. 시장 개요 | 주 1회 시장 흐름 | 9개 구 거래량·시세 |
 | 3. 상세 분석 | 가끔 드릴다운 | 직거래·갱신·법인 매수 등 |
 
 ### 5.2 차트 1-1: 관심 매물 현황 (테이블)
