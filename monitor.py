@@ -4,7 +4,10 @@ import os
 import statistics
 import time
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+import hashlib
+import tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import requests
 
@@ -239,3 +242,65 @@ def compute_gap(
         "used_extended": used_extended,
         "lookback_days_actual": extended_lookback_days if used_extended else lookback_days,
     }
+
+
+def load_state(path: str) -> dict:
+    p = Path(path)
+    if not p.exists():
+        return {"last_run": None, "last_error_notified_at": None, "alerted_sales": []}
+    with p.open(encoding="utf-8") as f:
+        return json.load(f)
+
+
+def save_state(path: str, state: dict) -> None:
+    """Atomic write: tmp 파일에 쓰고 rename."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=".state.", suffix=".tmp", dir=str(p.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_name, str(p))
+    except Exception:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
+        raise
+
+
+def make_record_id(record: dict) -> str:
+    key = "|".join([
+        record["아파트"],
+        record["법정동"],
+        f"{record['전용면적']:.2f}",
+        record["거래일"],
+        str(record["층"]),
+        str(record["거래금액"]),
+    ])
+    return hashlib.sha1(key.encode("utf-8")).hexdigest()
+
+
+def is_duplicate(record: dict, state: dict) -> bool:
+    rid = make_record_id(record)
+    return any(item["id"] == rid for item in state.get("alerted_sales", []))
+
+
+def add_to_state(record: dict, state: dict, *, complex_key: str, now: str) -> None:
+    state["alerted_sales"].append({
+        "id": make_record_id(record),
+        "complex_key": complex_key,
+        "deal_date": record["거래일"],
+        "alerted_at": now,
+    })
+
+
+def cleanup_old_alerts(state: dict, *, days: int, now: datetime) -> None:
+    cutoff = now - timedelta(days=days)
+    kept = []
+    for item in state.get("alerted_sales", []):
+        try:
+            t = datetime.fromisoformat(item["alerted_at"])
+        except ValueError:
+            continue
+        if t >= cutoff:
+            kept.append(item)
+    state["alerted_sales"] = kept
