@@ -31,7 +31,7 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │ GitHub Actions  (private repo)                  │
-│ cron: 0 0,9 * * *  (UTC) = 09:00 / 18:00 KST    │
+│ cron: 0 9 * * *  (UTC) = 매일 18:00 KST          │
 └──────────────┬──────────────────────────────────┘
                │ runner spawn (Ubuntu)
                ▼
@@ -362,7 +362,7 @@ for ymd in [202504..202405]:
 ### 3.2 일일 운영 (cron)
 
 ```
-[GitHub Actions cron: 0 0,9 * * * UTC = 09:00 / 18:00 KST]
+[GitHub Actions cron: 0 9 * * * UTC = 매일 18:00 KST]
         ↓
 runner spawn → git checkout → pip install
         ↓
@@ -690,7 +690,7 @@ ORDER BY apt_seq, size_label, month;
 
 병행 운영 없이 **직접 전환**한다 (기존 launchd는 6.1 단계 0에서 이미 해제).
 
-- 첫 cron 실행(다음 09:00 또는 18:00 KST) 또는 수동 트리거(`workflow_dispatch`) 후 다음 항목 즉시 점검:
+- 첫 cron 실행(다음 18:00 KST) 또는 수동 트리거(`workflow_dispatch`) 후 다음 항목 즉시 점검:
   1. **로그**: GitHub Actions 워크플로 로그에 에러 없음, "수집 N건 / 매칭 K건 / 발송 M건" 요약 정상.
   2. **DB**: `SELECT COUNT(*), MAX(fetched_at) FROM sale_records;` — fetched_at가 방금 시각, count가 백필+α.
   3. **알림**: 백필 dedup이 정상 작동했다면 첫 실행에서 알림 0~극소량. 폭격 발생 시 즉시 워크플로 disable.

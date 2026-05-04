@@ -4,7 +4,7 @@
 
 ## 인프라
 
-- **GitHub Actions** (cron 09:00·18:00 KST, private repo)
+- **GitHub Actions** (cron 매일 18:00 KST 1회, private repo)
 - **Supabase** (PostgreSQL, 무료 500MB)
 - **Metabase Cloud** (대시보드, 무료)
 - **Telegram Bot** (알림)

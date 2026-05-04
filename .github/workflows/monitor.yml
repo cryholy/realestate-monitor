@@ -2,8 +2,8 @@ name: realestate_monitor cron
 
 on:
   schedule:
-    # 09:00 / 18:00 KST = 00:00 / 09:00 UTC
-    - cron: "0 0,9 * * *"
+    # 매일 18:00 KST = 09:00 UTC
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

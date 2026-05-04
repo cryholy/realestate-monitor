@@ -4,7 +4,7 @@
 
 **Goal:** 9개 구(성동·광진·마포·서초·강남·송파·용산·동작·강동)의 매매·전월세 거래를 매일 Supabase에 누적하고, `alert_rules` 테이블에 등록된 관심 매물의 가격 임계값/전세가율 임계값 도달 시 텔레그램 알림을 발송하며, Metabase로 사이클·갭 분석을 시각화한다.
 
-**Architecture:** GitHub Actions cron(09:00·18:00 KST) → Python collector → 국토부 API → Supabase Postgres UPSERT → edge 트리거 평가 → Telegram. 단지 식별은 `apt_seq` 정확 매칭. dedup은 Supabase `alerts_sent` 테이블.
+**Architecture:** GitHub Actions cron(매일 18:00 KST) → Python collector → 국토부 API → Supabase Postgres UPSERT → edge 트리거 평가 → Telegram. 단지 식별은 `apt_seq` 정확 매칭. dedup은 Supabase `alerts_sent` 테이블.
 
 **Tech Stack:** Python 3.11+, requests, python-dotenv, supabase-py, pytest, PostgreSQL 15 (Supabase), Metabase Cloud, GitHub Actions, Telegram Bot API.
 
@@ -2499,8 +2499,8 @@ name: realestate_monitor cron
 
 on:
   schedule:
-    # 09:00 / 18:00 KST = 00:00 / 09:00 UTC
-    - cron: "0 0,9 * * *"
+    # 매일 18:00 KST = 09:00 UTC
+    - cron: "0 9 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -2565,7 +2565,7 @@ git commit -m "feat(realestate_monitor): GitHub Actions cron workflow (09/18시 
 
 ## 인프라
 
-- **GitHub Actions** (cron 09:00·18:00 KST, private repo)
+- **GitHub Actions** (cron 매일 18:00 KST 1회, private repo)
 - **Supabase** (PostgreSQL, 무료 500MB)
 - **Metabase Cloud** (대시보드, 무료)
 - **Telegram Bot** (알림)
@@ -2922,7 +2922,7 @@ gh run view <run_id> --log
 
 - [ ] **Step 3: dry-run OFF로 정식 가동**
 
-다음 cron(09:00 또는 18:00 KST)을 기다리거나 수동 트리거:
+다음 cron(18:00 KST)을 기다리거나 수동 트리거:
 ```bash
 gh workflow run monitor.yml -f dry_run=false
 ```
