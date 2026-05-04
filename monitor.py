@@ -59,12 +59,15 @@ def parse_xml(xml_text: str, kind: str) -> list[dict]:
         )
         raise RuntimeError(f"API 게이트웨이 오류 reasonCode={reason_el.text.strip()} ({msg})")
 
-    # 서비스 레벨 에러 (한도 초과 등) — resultCode != "00"
+    # 서비스 레벨 에러 (한도 초과 등) — resultCode가 "00"/"000"/"0" 이외면 오류.
+    # 공공데이터포털 API들이 성공 코드를 "00", "000" 둘 다 사용함.
     code_el = root.find(".//resultCode")
-    if code_el is not None and code_el.text and code_el.text.strip() != "00":
-        msg_el = root.find(".//resultMsg")
-        msg = msg_el.text.strip() if msg_el is not None and msg_el.text else ""
-        raise RuntimeError(f"API 오류 resultCode={code_el.text.strip()} ({msg})")
+    if code_el is not None and code_el.text:
+        code_text = code_el.text.strip()
+        if code_text.lstrip("0") != "":
+            msg_el = root.find(".//resultMsg")
+            msg = msg_el.text.strip() if msg_el is not None and msg_el.text else ""
+            raise RuntimeError(f"API 오류 resultCode={code_text} ({msg})")
 
     items = root.findall(".//item")
     records = []
@@ -84,39 +87,47 @@ def _text(item, tag: str) -> str:
 
 
 def _parse_sale_item(item) -> dict:
-    year = _text(item, "거래년도")
-    month = _text(item, "거래월").zfill(2)
-    day = _text(item, "거래일").zfill(2)
-    price_raw = _text(item, "거래금액").replace(",", "").replace(" ", "")
+    """국토부 아파트매매 실거래가 API 응답 파싱.
+
+    실제 API 필드(camelCase 영문) → 내부 표준(한글 키)로 매핑.
+    """
+    year = _text(item, "dealYear")
+    month = _text(item, "dealMonth").zfill(2)
+    day = _text(item, "dealDay").zfill(2)
+    price_raw = _text(item, "dealAmount").replace(",", "").replace(" ", "")
     return {
-        "아파트": _text(item, "아파트"),
-        "법정동": _text(item, "법정동"),
-        "전용면적": float(_text(item, "전용면적")),
+        "아파트": _text(item, "aptNm"),
+        "법정동": _text(item, "umdNm"),
+        "전용면적": float(_text(item, "excluUseAr") or 0),
         "거래금액": int(price_raw) if price_raw else 0,
-        "거래일": f"{year}-{month}-{day}",
-        "층": int(_text(item, "층") or 0),
-        "지역코드": _text(item, "지역코드"),
-        "건축년도": _text(item, "건축년도"),
+        "거래일": f"{year}-{month}-{day}" if year else "",
+        "층": int(_text(item, "floor") or 0),
+        "지역코드": _text(item, "sggCd"),
+        "건축년도": _text(item, "buildYear"),
     }
 
 
 def _parse_rent_item(item) -> dict:
-    date_raw = _text(item, "계약년월일")
-    deal_date = (
-        f"{date_raw[:4]}-{date_raw[4:6]}-{date_raw[6:8]}" if len(date_raw) == 8 else ""
-    )
-    deposit_raw = _text(item, "보증금액").replace(",", "").replace(" ", "")
-    monthly_raw = _text(item, "월세금액").replace(",", "").replace(" ", "")
+    """국토부 아파트 전월세 API 응답 파싱.
+
+    실제 API 필드(camelCase 영문) → 내부 표준(한글 키)로 매핑.
+    """
+    year = _text(item, "dealYear")
+    month = _text(item, "dealMonth").zfill(2)
+    day = _text(item, "dealDay").zfill(2)
+    deal_date = f"{year}-{month}-{day}" if year else ""
+    deposit_raw = _text(item, "deposit").replace(",", "").replace(" ", "")
+    monthly_raw = _text(item, "monthlyRent").replace(",", "").replace(" ", "")
     return {
-        "아파트": _text(item, "아파트"),
-        "법정동": _text(item, "법정동"),
-        "전용면적": float(_text(item, "전용면적")),
+        "아파트": _text(item, "aptNm"),
+        "법정동": _text(item, "umdNm"),
+        "전용면적": float(_text(item, "excluUseAr") or 0),
         "보증금": int(deposit_raw) if deposit_raw else 0,
         "월세": int(monthly_raw) if monthly_raw else 0,
         "계약일": deal_date,
-        "계약구분": _text(item, "계약구분"),
-        "층": int(_text(item, "층") or 0),
-        "지역코드": _text(item, "지역코드"),
+        "계약구분": _text(item, "contractType"),
+        "층": int(_text(item, "floor") or 0),
+        "지역코드": _text(item, "sggCd"),
     }
 
 
@@ -365,8 +376,7 @@ def format_message(match: dict, gap_info: dict) -> str:
             f"🔻 갭 (매매 − 전세 중위값)\n"
             f"   약 {_format_won(gap_info['gap'])}"
         )
-    tail = "\n\n[국토부 실거래가 보기 ↗](https://rt.molit.go.kr)"
-    return head + body + tail
+    return head + body
 
 
 def send_telegram(token: str, chat_id: str, text: str) -> None:

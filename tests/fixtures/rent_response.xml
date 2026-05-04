@@ -1,49 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <response>
   <header>
-    <resultCode>00</resultCode>
-    <resultMsg>NORMAL_SERVICE</resultMsg>
+    <resultCode>000</resultCode>
+    <resultMsg>OK</resultMsg>
   </header>
   <body>
     <items>
       <item>
-        <보증금액> 125,000</보증금액>
-        <월세금액> 0</월세금액>
-        <계약구분>신규</계약구분>
-        <계약년월일>20260315</계약년월일>
-        <건축년도>2003</건축년도>
-        <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
-        <전용면적>84.92</전용면적>
-        <지번>668</지번>
-        <지역코드>11200</지역코드>
-        <층>10</층>
+        <aptNm>서울숲푸르지오</aptNm>
+        <buildYear>2003</buildYear>
+        <contractType>신규</contractType>
+        <dealDay>15</dealDay>
+        <dealMonth>3</dealMonth>
+        <dealYear>2026</dealYear>
+        <deposit> 125,000</deposit>
+        <excluUseAr>84.92</excluUseAr>
+        <floor>10</floor>
+        <jibun>668</jibun>
+        <monthlyRent> 0</monthlyRent>
+        <sggCd>11200</sggCd>
+        <umdNm>성수동1가</umdNm>
       </item>
       <item>
-        <보증금액> 130,000</보증금액>
-        <월세금액> 0</월세금액>
-        <계약구분>갱신</계약구분>
-        <계약년월일>20260328</계약년월일>
-        <건축년도>2003</건축년도>
-        <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
-        <전용면적>84.92</전용면적>
-        <지번>668</지번>
-        <지역코드>11200</지역코드>
-        <층>14</층>
+        <aptNm>서울숲푸르지오</aptNm>
+        <buildYear>2003</buildYear>
+        <contractType>갱신</contractType>
+        <dealDay>28</dealDay>
+        <dealMonth>3</dealMonth>
+        <dealYear>2026</dealYear>
+        <deposit> 130,000</deposit>
+        <excluUseAr>84.92</excluUseAr>
+        <floor>14</floor>
+        <jibun>668</jibun>
+        <monthlyRent> 0</monthlyRent>
+        <sggCd>11200</sggCd>
+        <umdNm>성수동1가</umdNm>
       </item>
       <item>
-        <보증금액> 50,000</보증금액>
-        <월세금액> 200</월세금액>
-        <계약구분>신규</계약구분>
-        <계약년월일>20260320</계약년월일>
-        <건축년도>2003</건축년도>
-        <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
-        <전용면적>84.92</전용면적>
-        <지번>668</지번>
-        <지역코드>11200</지역코드>
-        <층>5</층>
+        <aptNm>서울숲푸르지오</aptNm>
+        <buildYear>2003</buildYear>
+        <contractType>신규</contractType>
+        <dealDay>20</dealDay>
+        <dealMonth>3</dealMonth>
+        <dealYear>2026</dealYear>
+        <deposit> 50,000</deposit>
+        <excluUseAr>84.92</excluUseAr>
+        <floor>5</floor>
+        <jibun>668</jibun>
+        <monthlyRent> 200</monthlyRent>
+        <sggCd>11200</sggCd>
+        <umdNm>성수동1가</umdNm>
       </item>
     </items>
     <numOfRows>1000</numOfRows>
