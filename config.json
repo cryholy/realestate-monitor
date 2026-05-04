@@ -1,0 +1,71 @@
+{
+  "complexes": [
+    {
+      "key": "seoulsupp_1",
+      "display_name": "서울숲푸르지오",
+      "lawd_cd": "11200",
+      "법정동": "성수동1가",
+      "name_patterns": ["서울숲푸르지오"],
+      "exclude_patterns": ["2차", "Ⅱ", "시티"]
+    },
+    {
+      "key": "seoulsupp_2",
+      "display_name": "서울숲푸르지오 2차",
+      "lawd_cd": "11200",
+      "법정동": "성수동1가",
+      "name_patterns": ["서울숲푸르지오2차", "서울숲푸르지오Ⅱ"],
+      "exclude_patterns": []
+    },
+    {
+      "key": "guui_lottecastle_eastpole",
+      "display_name": "구의롯데캐슬이스트폴",
+      "lawd_cd": "11215",
+      "법정동": "구의동",
+      "name_patterns": ["구의롯데캐슬이스트폴", "롯데캐슬이스트폴"],
+      "exclude_patterns": []
+    },
+    {
+      "key": "jayang_hanyang",
+      "display_name": "자양 한양",
+      "lawd_cd": "11215",
+      "법정동": "자양동",
+      "name_patterns": ["자양한양", "한양"],
+      "exclude_patterns": ["현대", "수자인", "프라임", "리버"]
+    },
+    {
+      "key": "kwangjang_geukdong_1",
+      "display_name": "광장 극동 1차",
+      "lawd_cd": "11215",
+      "법정동": "광장동",
+      "name_patterns": ["극동1차", "극동(1차)", "극동 1"],
+      "exclude_patterns": ["2차", "Ⅱ"]
+    },
+    {
+      "key": "kwangjang_geukdong_2",
+      "display_name": "광장 극동 2차",
+      "lawd_cd": "11215",
+      "법정동": "광장동",
+      "name_patterns": ["극동2차", "극동(2차)", "극동 2", "극동Ⅱ"],
+      "exclude_patterns": []
+    },
+    {
+      "key": "oksu_heights",
+      "display_name": "옥수하이츠",
+      "lawd_cd": "11200",
+      "법정동": "옥수동",
+      "name_patterns": ["옥수하이츠"],
+      "exclude_patterns": []
+    }
+  ],
+  "size_ranges": {
+    "59": [58.0, 60.5],
+    "84": [83.0, 85.5]
+  },
+  "max_price_만원": 200000,
+  "rent_lookback_days": 90,
+  "rent_min_samples": 5,
+  "rent_extended_lookback_days": 180,
+  "include_월세": false,
+  "rent_conversion_rate": 100,
+  "telegram_chat_id": "REPLACE_WITH_YOUR_CHAT_ID"
+}
