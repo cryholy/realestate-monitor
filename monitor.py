@@ -1,7 +1,10 @@
 """부동산 실거래가·전월세 모니터링."""
+import argparse
 import json
+import logging
 import os
 import statistics
+import sys
 import time
 import xml.etree.ElementTree as ET
 import hashlib
@@ -10,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
 
 REQUIRED_CONFIG_KEYS = {
     "complexes",
@@ -355,3 +359,215 @@ def send_telegram(token: str, chat_id: str, text: str) -> None:
     )
     if resp.status_code != 200:
         raise RuntimeError(f"텔레그램 발송 실패 ({resp.status_code}): {resp.text[:200]}")
+
+
+def setup_logging(log_dir) -> None:
+    """Task 12에서 실제 구현 예정. 현재는 no-op (basicConfig만 셋업)."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+
+
+def should_send_error_alert(state: dict) -> bool:
+    """Task 11에서 실제 구현 예정. 현재는 항상 False."""
+    return False
+
+
+def mark_error_alert_sent(state: dict) -> None:
+    """Task 11에서 실제 구현 예정. 현재는 no-op."""
+    pass
+
+
+KST = timezone(timedelta(hours=9))
+
+logger = logging.getLogger("realestate_monitor")
+
+
+def _ymd_list(months_back: int) -> list[str]:
+    """오늘 기준 직전 N개월 (이번 달 포함) YYYYMM 리스트, 최신부터."""
+    today = datetime.now(KST)
+    out = []
+    y, m = today.year, today.month
+    for _ in range(months_back):
+        out.append(f"{y:04d}{m:02d}")
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    return out
+
+
+def _collect_records(config: dict, service_key: str, months: int) -> tuple[list[dict], list[dict]]:
+    """모든 시군구 × 모든 월의 매매·전월세 레코드 수집."""
+    lawd_cds = sorted({c["lawd_cd"] for c in config["complexes"]})
+    sales: list[dict] = []
+    rents: list[dict] = []
+    for ymd in _ymd_list(months):
+        for cd in lawd_cds:
+            try:
+                sales.extend(fetch_sales(cd, ymd, service_key))
+            except Exception as e:
+                logger.error("매매 fetch 실패 lawd=%s ymd=%s: %s", cd, ymd, e)
+            try:
+                rents.extend(fetch_rents(cd, ymd, service_key))
+            except Exception as e:
+                logger.error("전월세 fetch 실패 lawd=%s ymd=%s: %s", cd, ymd, e)
+    return sales, rents
+
+
+def _find_matches(sales: list[dict], config: dict) -> list[dict]:
+    """단지·면적·가격 조건을 모두 만족하는 매매 매칭 리스트."""
+    matches = []
+    complex_lookup = {c["key"]: c for c in config["complexes"]}
+    for record in sales:
+        complex_key = match_complex(record, config["complexes"])
+        if not complex_key:
+            continue
+        size_label = filter_size(record, config["size_ranges"])
+        if not size_label:
+            continue
+        if not filter_price(record, config["max_price_만원"]):
+            continue
+        matches.append({
+            **record,
+            "complex_key": complex_key,
+            "complex_display": complex_lookup[complex_key]["display_name"],
+            "size_label": size_label,
+        })
+    return matches
+
+
+def _build_gap(match: dict, rents: list[dict], config: dict) -> dict:
+    same_complex_key = match["complex_key"]
+    complex_def = next(c for c in config["complexes"] if c["key"] == same_complex_key)
+    same_complex_rents = [
+        r for r in rents
+        if normalize(r["아파트"]).startswith(normalize(complex_def["name_patterns"][0])[:6])
+        and r["법정동"] == complex_def["법정동"]
+    ]
+    size_range = config["size_ranges"][match["size_label"]]
+    return compute_gap(
+        complex_key=same_complex_key,
+        size_label=match["size_label"],
+        size_range=tuple(size_range),
+        sale_price=match["거래금액"],
+        rent_records=same_complex_rents,
+        lookback_days=config["rent_lookback_days"],
+        extended_lookback_days=config.get("rent_extended_lookback_days", 180),
+        min_samples=config["rent_min_samples"],
+        today=datetime.now(KST).date().isoformat(),
+    )
+
+
+def _try_error_alert(token: str, chat_id: str, msg: str, state: dict) -> None:
+    """Task 11에서 1일 1회 제한 추가 예정. 현재는 단순 발송."""
+    try:
+        send_telegram(token, chat_id, f"⚠️ realestate_monitor 운영 알림\n{msg[:500]}")
+        mark_error_alert_sent(state)
+    except Exception as e:
+        logger.error("운영 알림 발송 실패: %s", e)
+
+
+def run(args) -> int:
+    load_dotenv(dotenv_path=Path(args.base_dir) / ".env")
+    service_key = os.environ.get("MOLIT_SERVICE_KEY", "").strip()
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
+    if not service_key:
+        logger.error("MOLIT_SERVICE_KEY 미설정")
+        return 2
+    if not bot_token and not args.dry_run:
+        logger.error("TELEGRAM_BOT_TOKEN 미설정")
+        return 2
+
+    config = load_config(str(Path(args.base_dir) / "config.json"))
+    state_path = str(Path(args.base_dir) / "state.json")
+    state = load_state(state_path)
+
+    months = args.backfill_months if args.backfill_months else 2
+    logger.info("데이터 수집 (직전 %d개월)", months)
+    sales, rents = _collect_records(config, service_key, months)
+    logger.info("수집 완료: 매매 %d건, 전월세 %d건", len(sales), len(rents))
+
+    matches = _find_matches(sales, config)
+    logger.info("필터 후 매칭 매매 %d건", len(matches))
+
+    if not args.no_dedup:
+        matches = [m for m in matches if not is_duplicate(m, state)]
+        logger.info("dedup 후 매칭 %d건", len(matches))
+
+    if args.report:
+        _print_report(sales, rents, matches, config)
+        return 0
+
+    if not matches:
+        logger.info("신규 매칭 없음")
+        state["last_run"] = datetime.now(KST).isoformat()
+        cleanup_old_alerts(state, days=180, now=datetime.now(timezone.utc))
+        save_state(state_path, state)
+        return 0
+
+    sent = []
+    for match in matches:
+        gap_info = _build_gap(match, rents, config)
+        text = format_message(match, gap_info)
+        if args.dry_run:
+            print("=== DRY RUN ===")
+            print(text)
+            continue
+        try:
+            send_telegram(bot_token, config["telegram_chat_id"], text)
+            sent.append(match)
+        except Exception as e:
+            logger.error("텔레그램 발송 실패: %s", e)
+            if args.notify_on_error and should_send_error_alert(state):
+                _try_error_alert(bot_token, config["telegram_chat_id"], str(e), state)
+
+    if not args.dry_run:
+        for match in sent:
+            add_to_state(match, state, complex_key=match["complex_key"], now=datetime.now(KST).isoformat())
+
+    state["last_run"] = datetime.now(KST).isoformat()
+    cleanup_old_alerts(state, days=180, now=datetime.now(timezone.utc))
+    save_state(state_path, state)
+    logger.info("발송 완료: %d건", len(sent))
+    return 0
+
+
+def _print_report(sales, rents, matches, config):
+    print("=== 단지별 매칭 검증 ===\n")
+    by_complex = {c["key"]: {"display": c["display_name"], "sales": 0, "rents": 0} for c in config["complexes"]}
+    for r in sales:
+        k = match_complex(r, config["complexes"])
+        if k and filter_size(r, config["size_ranges"]):
+            by_complex[k]["sales"] += 1
+    for r in rents:
+        k = match_complex(r, config["complexes"])
+        if k and filter_size(r, config["size_ranges"]):
+            by_complex[k]["rents"] += 1
+    for key, info in by_complex.items():
+        marker = "✅" if info["sales"] + info["rents"] > 0 else "⚠️"
+        print(f"{marker} {info['display']}  매매 {info['sales']}건 / 전월세 {info['rents']}건")
+    print(f"\n=== 가격 임계값 통과 매칭: {len(matches)}건 ===")
+    for m in matches:
+        print(f"  - {m['complex_display']} {m['size_label']}㎡  {_format_won(m['거래금액'])}  ({m['거래일']}, {m['층']}층)")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="부동산 실거래가·전월세 모니터링")
+    parser.add_argument("--base-dir", default=str(Path(__file__).parent), help="프로젝트 루트")
+    parser.add_argument("--dry-run", action="store_true", help="알림 발송 없이 콘솔 출력")
+    parser.add_argument("--no-dedup", action="store_true", help="state 무시하고 전체 발송")
+    parser.add_argument("--backfill-months", type=int, default=0, help="직전 N개월 백필")
+    parser.add_argument("--report", action="store_true", help="단지별 매칭 검증 리포트")
+    parser.add_argument("--notify-on-error", action="store_true", help="치명적 오류 시 운영 알림")
+    args = parser.parse_args()
+
+    setup_logging(Path(args.base_dir) / "logs")
+
+    try:
+        return run(args)
+    except Exception as e:
+        logger.exception("치명적 오류: %s", e)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
