@@ -144,31 +144,27 @@ ORDER BY 매물, s.month;
 
 ```sql
 WITH s AS (
-  SELECT DATE_TRUNC('month', deal_date)::date AS month, sgg_cd, COUNT(*) AS sale_count
-  FROM sale_records
-  WHERE deal_date >= CURRENT_DATE - INTERVAL '12 months'
+  SELECT DATE_TRUNC('month', s.deal_date)::date AS month, d.name AS 구, COUNT(*) AS sale_count
+  FROM sale_records s
+  LEFT JOIN districts d ON s.sgg_cd = d.sgg_cd
+  WHERE s.deal_date >= CURRENT_DATE - INTERVAL '12 months'
   GROUP BY 1, 2
 ),
 r AS (
-  SELECT DATE_TRUNC('month', contract_date)::date AS month, sgg_cd, COUNT(*) AS rent_count
-  FROM rent_records
-  WHERE contract_date >= CURRENT_DATE - INTERVAL '12 months'
+  SELECT DATE_TRUNC('month', r.contract_date)::date AS month, d.name AS 구, COUNT(*) AS rent_count
+  FROM rent_records r
+  LEFT JOIN districts d ON r.sgg_cd = d.sgg_cd
+  WHERE r.contract_date >= CURRENT_DATE - INTERVAL '12 months'
   GROUP BY 1, 2
 )
 SELECT
   COALESCE(s.month, r.month) AS month,
-  CASE COALESCE(s.sgg_cd, r.sgg_cd)
-    WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
-    WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
-    WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
-    WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
-    WHEN '11740' THEN '강동'
-  END AS 구,
+  COALESCE(s.구, r.구) AS 구,
   COALESCE(s.sale_count, 0) AS 매매수,
   COALESCE(r.rent_count, 0) AS 전월세수,
   COALESCE(s.sale_count, 0) + COALESCE(r.rent_count, 0) AS 전체거래수
 FROM s
-FULL OUTER JOIN r USING (month, sgg_cd)
+FULL OUTER JOIN r USING (month, 구)
 ORDER BY month, 구;
 ```
 
@@ -189,32 +185,22 @@ SELECT
   COUNT(*) AS 거래수
 FROM (
   SELECT
-    DATE_TRUNC('month', deal_date)::date AS month,
-    CASE sgg_cd
-      WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
-      WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
-      WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
-      WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
-      WHEN '11740' THEN '강동'
-    END AS 구,
+    DATE_TRUNC('month', s.deal_date)::date AS month,
+    d.name AS 구,
     '매매' AS 거래유형
-  FROM sale_records
-  WHERE deal_date >= CURRENT_DATE - INTERVAL '12 months'
+  FROM sale_records s
+  LEFT JOIN districts d ON s.sgg_cd = d.sgg_cd
+  WHERE s.deal_date >= CURRENT_DATE - INTERVAL '12 months'
 
   UNION ALL
 
   SELECT
-    DATE_TRUNC('month', contract_date)::date,
-    CASE sgg_cd
-      WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
-      WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
-      WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
-      WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
-      WHEN '11740' THEN '강동'
-    END,
+    DATE_TRUNC('month', r.contract_date)::date,
+    d.name,
     '전월세'
-  FROM rent_records
-  WHERE contract_date >= CURRENT_DATE - INTERVAL '12 months'
+  FROM rent_records r
+  LEFT JOIN districts d ON r.sgg_cd = d.sgg_cd
+  WHERE r.contract_date >= CURRENT_DATE - INTERVAL '12 months'
 ) t
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
@@ -229,20 +215,15 @@ ORDER BY 1, 2, 3;
 
 ```sql
 SELECT
-  DATE_TRUNC('month', deal_date)::date AS month,
-  CASE sgg_cd
-    WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
-    WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
-    WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
-    WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
-    WHEN '11740' THEN '강동'
-  END AS 구,
-  size_label,
-  ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_만원) / 10000.0)::numeric, 1) AS 중위_억,
+  DATE_TRUNC('month', s.deal_date)::date AS month,
+  d.name AS 구,
+  s.size_label,
+  ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY s.price_만원) / 10000.0)::numeric, 1) AS 중위_억,
   COUNT(*) AS 거래수
-FROM sale_records
-WHERE size_label IN ('59', 'mid', '84')
-  AND deal_date >= CURRENT_DATE - INTERVAL '12 months'
+FROM sale_records s
+LEFT JOIN districts d ON s.sgg_cd = d.sgg_cd
+WHERE s.size_label IN ('59', 'mid', '84')
+  AND s.deal_date >= CURRENT_DATE - INTERVAL '12 months'
 GROUP BY 1, 2, 3
 ORDER BY 1, 2, 3;
 ```
