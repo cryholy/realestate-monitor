@@ -168,3 +168,17 @@ def match_complex(record: dict, complexes: list[dict]) -> str | None:
             continue
         return complex_def["key"]
     return None
+
+
+def filter_size(record: dict, size_ranges: dict) -> str | None:
+    """전용면적이 어느 라벨(예: '84')에 속하는지 반환, 없으면 None."""
+    area = record["전용면적"]
+    for label, (lo, hi) in size_ranges.items():
+        if lo <= area <= hi:
+            return label
+    return None
+
+
+def filter_price(record: dict, max_price_만원: int) -> bool:
+    """거래금액이 임계값 미만이면 True."""
+    return record["거래금액"] < max_price_만원
