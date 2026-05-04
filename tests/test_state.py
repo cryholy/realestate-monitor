@@ -93,3 +93,31 @@ def test_cleanup_removes_old_alerts():
     cleanup_old_alerts(state, days=180, now=now)
     assert len(state["alerted_sales"]) == 1
     assert state["alerted_sales"][0]["id"] == "b" * 40
+
+
+from monitor import should_send_error_alert, mark_error_alert_sent
+
+
+def test_should_send_error_alert_when_never_sent():
+    state = {"last_error_notified_at": None, "alerted_sales": []}
+    assert should_send_error_alert(state) is True
+
+
+def test_should_send_error_alert_when_within_24h():
+    now = datetime.now(timezone.utc)
+    state = {"last_error_notified_at": (now - timedelta(hours=2)).isoformat(), "alerted_sales": []}
+    assert should_send_error_alert(state) is False
+
+
+def test_should_send_error_alert_when_over_24h():
+    now = datetime.now(timezone.utc)
+    state = {"last_error_notified_at": (now - timedelta(hours=25)).isoformat(), "alerted_sales": []}
+    assert should_send_error_alert(state) is True
+
+
+def test_mark_error_alert_sent_updates_timestamp():
+    state = {"last_error_notified_at": None, "alerted_sales": []}
+    mark_error_alert_sent(state)
+    assert state["last_error_notified_at"] is not None
+    parsed = datetime.fromisoformat(state["last_error_notified_at"])
+    assert (datetime.now(timezone.utc) - parsed).total_seconds() < 5

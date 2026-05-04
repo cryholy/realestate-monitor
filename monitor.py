@@ -367,13 +367,18 @@ def setup_logging(log_dir) -> None:
 
 
 def should_send_error_alert(state: dict) -> bool:
-    """Task 11에서 실제 구현 예정. 현재는 항상 False."""
-    return False
+    last = state.get("last_error_notified_at")
+    if not last:
+        return True
+    try:
+        t = datetime.fromisoformat(last)
+    except ValueError:
+        return True
+    return (datetime.now(timezone.utc) - t) >= timedelta(hours=24)
 
 
 def mark_error_alert_sent(state: dict) -> None:
-    """Task 11에서 실제 구현 예정. 현재는 no-op."""
-    pass
+    state["last_error_notified_at"] = datetime.now(timezone.utc).isoformat()
 
 
 KST = timezone(timedelta(hours=9))
@@ -458,7 +463,7 @@ def _build_gap(match: dict, rents: list[dict], config: dict) -> dict:
 
 
 def _try_error_alert(token: str, chat_id: str, msg: str, state: dict) -> None:
-    """Task 11에서 1일 1회 제한 추가 예정. 현재는 단순 발송."""
+    """운영 알림 발송 + 발송 시각 기록 (1일 1회 제한은 호출 전 should_send_error_alert로 확인)."""
     try:
         send_telegram(token, chat_id, f"⚠️ realestate_monitor 운영 알림\n{msg[:500]}")
         mark_error_alert_sent(state)
