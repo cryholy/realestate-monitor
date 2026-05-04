@@ -103,13 +103,21 @@ def collect_records(service_key: str, months: int) -> tuple[list[dict], list[dic
 
 
 def find_new_records(client, table: str, candidate_records: list[dict]) -> list[dict]:
-    """후보 record 중 DB에 없는 신규만 식별 (UPSERT 전 사전 조회)."""
+    """후보 record 중 DB에 없는 신규만 식별 (UPSERT 전 사전 조회).
+
+    PostgREST IN 쿼리는 URL query string으로 직렬화되어 URL 길이 한도(~8KB)에 걸리므로
+    100건씩 chunk로 나눠 조회.
+    """
     if not candidate_records:
         return []
 
     ids = [r["id"] for r in candidate_records]
-    resp = client.table(table).select("id").in_("id", ids).execute()
-    existing = {row["id"] for row in (resp.data or [])}
+    BATCH = 100
+    existing: set[str] = set()
+    for i in range(0, len(ids), BATCH):
+        chunk = ids[i:i+BATCH]
+        resp = client.table(table).select("id").in_("id", chunk).execute()
+        existing.update(row["id"] for row in (resp.data or []))
 
     return [r for r in candidate_records if r["id"] not in existing]
 
