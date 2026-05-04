@@ -222,21 +222,35 @@ ORDER BY 1, 2, 3;
 
 ---
 
-## 차트 5. 평형별 중위 시세 (9개 구 평균)
+## 차트 5. 평형별 중위 시세 — 구별 구분
 
-**차트 타입**: Line (x축: month, color: size_label)
+**차트 타입**: Line (x축: month, color: 구 또는 size_label, filter: 다른 한 차원)
+**용도**: 구·평형별 시세 추이 비교. 강남/송파 vs 그 외 구의 가격대·변동성 차이 가시화.
 
 ```sql
 SELECT
   DATE_TRUNC('month', deal_date)::date AS month,
+  CASE sgg_cd
+    WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
+    WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
+    WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
+    WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
+    WHEN '11740' THEN '강동'
+  END AS 구,
   size_label,
-  ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_만원) / 10000.0)::numeric, 1) AS 중위_억
+  ROUND((PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price_만원) / 10000.0)::numeric, 1) AS 중위_억,
+  COUNT(*) AS 거래수
 FROM sale_records
 WHERE size_label IN ('59', 'mid', '84')
   AND deal_date >= CURRENT_DATE - INTERVAL '12 months'
-GROUP BY 1, 2
-ORDER BY 1, 2;
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;
 ```
+
+> **차트 활용 팁**:
+> - **size_label 고정 + 구별 비교** (예: 84㎡): filter `size_label = '84'` → 9개 구 × 12개월 라인. 강남·서초 vs 마포·동작 가격 차이 한눈.
+> - **구 고정 + 평형별 비교** (예: 송파): filter `구 = '송파'` → 59/mid/84 3개 라인. 단일 구 안에서 평형별 시세 차이.
+> - **거래수 컬럼**: 표본 수 — 노이즈 많은 시점(거래 0~2건) 식별용. tooltip에 함께 표시 권장.
 
 ---
 
