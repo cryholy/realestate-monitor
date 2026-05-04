@@ -304,3 +304,54 @@ def cleanup_old_alerts(state: dict, *, days: int, now: datetime) -> None:
         if t >= cutoff:
             kept.append(item)
     state["alerted_sales"] = kept
+
+
+TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
+
+
+def _format_won(만원: int) -> str:
+    """198000 만원 → '19억 8,000'."""
+    억 = 만원 // 10000
+    rest = 만원 % 10000
+    if 억 == 0:
+        return f"{rest:,}"
+    if rest == 0:
+        return f"{억}억"
+    return f"{억}억 {rest:,}"
+
+
+def format_message(match: dict, gap_info: dict) -> str:
+    head = (
+        f"🏠 새로운 매매 거래 ({match['complex_display']} {match['size_label']}㎡)\n\n"
+        f"💰 매매가  {_format_won(match['거래금액'])} "
+        f"({match['층']}층, {match['거래일']} 신고)"
+    )
+    if gap_info["median_보증금"] is None:
+        body = (
+            f"\n📊 전세 데이터 부족 (직전 {gap_info['lookback_days_actual']}일 "
+            f"{gap_info['sample_count']}건)\n"
+            f"🔻 갭 계산 불가"
+        )
+    else:
+        body = (
+            f"\n📊 직전 {gap_info['lookback_days_actual']}일 전세 시세 "
+            f"({match['size_label']}㎡, {gap_info['sample_count']}건)\n"
+            f"   • 중위값  {_format_won(gap_info['median_보증금'])}\n"
+            f"   • 최저~최고  {_format_won(gap_info['min_보증금'])} ~ "
+            f"{_format_won(gap_info['max_보증금'])}\n"
+            f"🔻 갭 (매매 − 전세 중위값)\n"
+            f"   약 {_format_won(gap_info['gap'])}"
+        )
+    tail = "\n\n[국토부 실거래가 보기 ↗](https://rt.molit.go.kr)"
+    return head + body + tail
+
+
+def send_telegram(token: str, chat_id: str, text: str) -> None:
+    url = TELEGRAM_API.format(token=token)
+    resp = requests.post(
+        url,
+        json={"chat_id": chat_id, "text": text, "parse_mode": "Markdown", "disable_web_page_preview": True},
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"텔레그램 발송 실패 ({resp.status_code}): {resp.text[:200]}")
