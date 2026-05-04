@@ -75,16 +75,40 @@ python3.11 monitor.py --backfill-months 6
 python3.11 monitor.py --notify-on-error
 ```
 
-## 스케줄 등록 (Claude 원격 에이전트)
+## 스케줄 등록
 
-`schedule` 스킬로 다음과 같이 등록:
+### 옵션 A. macOS launchd (현재 사용 중)
 
+노트북 ON 상태에서 매일 09:00·18:00 KST에 실행. plist 템플릿이 프로젝트에 포함되어 있다.
+
+```bash
+# 설치
+cp com.joel.realestate-monitor.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.joel.realestate-monitor.plist
+
+# 등록 확인
+launchctl list | grep realestate
+
+# 수동 실행 테스트
+launchctl kickstart -p gui/$(id -u)/com.joel.realestate-monitor
+
+# 로그
+tail -f logs/launchd.err.log    # Python logging은 stderr로 출력됨
+
+# 제거
+launchctl unload ~/Library/LaunchAgents/com.joel.realestate-monitor.plist
 ```
-이름     : realestate-monitor
-cron     : 0 9,18 * * *
-타임존   : Asia/Seoul
-프롬프트 : cd /Users/joel/Claude/labs/realestate_monitor && python3.11 monitor.py --notify-on-error
-```
+
+**한계**: 노트북이 꺼져 있는 시각엔 실행되지 않는다. 이 시점에 실행되어야 했던 작업은 다음 부팅 후 자동 catch-up되지만, 시각이 정확히 9시·18시는 아니다.
+
+### 옵션 B. GitHub Actions (laptop-independent, 향후 마이그레이션)
+
+1. Private GitHub repo에 코드 push (state.json 포함, .env 제외)
+2. GitHub Secrets에 `MOLIT_SERVICE_KEY`·`TELEGRAM_BOT_TOKEN` 등록
+3. `.github/workflows/monitor.yml` 작성 (cron `0 0,9 * * *` UTC = 09:00·18:00 KST)
+4. 워크플로 마지막에 state.json 변경 시 자동 commit & push
+
+자세한 설정은 추후 별도 가이드.
 
 ## 단지·임계값 변경
 
