@@ -137,3 +137,34 @@ def fetch_rents(lawd_cd: str, ymd: str, service_key: str) -> list[dict]:
     }
     xml_text = _api_get(RENT_ENDPOINT, params)
     return parse_xml(xml_text, kind="rent")
+
+
+def normalize(name: str) -> str:
+    return "".join(name.split()).lower()
+
+
+def match_complex(record: dict, complexes: list[dict]) -> str | None:
+    """매칭되는 단지의 key 반환, 없으면 None.
+
+    동일 record가 두 단지 정의 모두에 매칭되면 더 구체적인(=2차 같은) 정의가 우선되도록
+    name_patterns 길이가 긴 정의를 먼저 평가한다.
+    """
+    name_norm = normalize(record["아파트"])
+    법정동 = record["법정동"].strip()
+
+    sorted_complexes = sorted(
+        complexes,
+        key=lambda c: -max((len(p) for p in c.get("name_patterns", [])), default=0),
+    )
+
+    for complex_def in sorted_complexes:
+        if complex_def["법정동"] != 법정동:
+            continue
+        patterns = [normalize(p) for p in complex_def.get("name_patterns", [])]
+        excludes = [normalize(p) for p in complex_def.get("exclude_patterns", [])]
+        if not any(p in name_norm for p in patterns):
+            continue
+        if any(e in name_norm for e in excludes):
+            continue
+        return complex_def["key"]
+    return None
