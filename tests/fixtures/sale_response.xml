@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header>
+    <resultCode>000</resultCode>
+    <resultMsg>OK</resultMsg>
+  </header>
+  <body>
+    <items>
+      <item>
+        <aptDong></aptDong>
+        <aptNm>헬리오시티</aptNm>
+        <aptSeq>11710-2412</aptSeq>
+        <bonbun>0001</bonbun>
+        <bubun>0000</bubun>
+        <buildYear>2018</buildYear>
+        <buyerGbn>개인</buyerGbn>
+        <cdealDay></cdealDay>
+        <cdealType></cdealType>
+        <dealAmount> 198,000</dealAmount>
+        <dealDay>28</dealDay>
+        <dealMonth>4</dealMonth>
+        <dealYear>2026</dealYear>
+        <dealingGbn>중개거래</dealingGbn>
+        <estateAgentSggNm>서울 송파구</estateAgentSggNm>
+        <excluUseAr>84.92</excluUseAr>
+        <floor>15</floor>
+        <jibun>1</jibun>
+        <landCd>1</landCd>
+        <landLeaseholdGbn>N</landLeaseholdGbn>
+        <rgstDate></rgstDate>
+        <roadNm>송파대로</roadNm>
+        <roadNmBonbun>00345</roadNmBonbun>
+        <roadNmBubun>00000</roadNmBubun>
+        <roadNmCd>4109367</roadNmCd>
+        <roadNmSeq>01</roadNmSeq>
+        <roadNmSggCd>11710</roadNmSggCd>
+        <roadNmbCd>0</roadNmbCd>
+        <sggCd>11710</sggCd>
+        <slerGbn>개인</slerGbn>
+        <umdCd>11500</umdCd>
+        <umdNm>가락동</umdNm>
+      </item>
+      <item>
+        <aptNm>헬리오시티</aptNm>
+        <aptSeq>11710-2412</aptSeq>
+        <buildYear>2018</buildYear>
+        <buyerGbn>법인</buyerGbn>
+        <dealAmount> 175,000</dealAmount>
+        <dealDay>15</dealDay>
+        <dealMonth>4</dealMonth>
+        <dealYear>2026</dealYear>
+        <dealingGbn>직거래</dealingGbn>
+        <excluUseAr>59.97</excluUseAr>
+        <floor>8</floor>
+        <sggCd>11710</sggCd>
+        <slerGbn>개인</slerGbn>
+        <umdNm>가락동</umdNm>
+      </item>
+    </items>
+    <numOfRows>1000</numOfRows>
+    <pageNo>1</pageNo>
+    <totalCount>2</totalCount>
+  </body>
+</response>
