@@ -1,8 +1,9 @@
-# Phase 2 설계: 클라우드 마이그레이션 + 데이터 누적 + 갭 알림
+# 부동산 실거래·전월세 클라우드 모니터링 시스템 설계
 
 작성일: 2026-05-04
-대상: `/Users/joel/Claude/labs/realestate_monitor/` (Phase 2)
-선행: `2026-05-04-design.md` (Phase 1), `2026-05-04-future-cloud-migration.md` (마이그레이션 노트)
+대상: `/Users/joel/Claude/labs/realestate_monitor/` (전면 재작성)
+
+목적이 단순 알림에서 **8개 구 데이터 누적 + 분석 대시보드 + 갭 알림**으로 확장되었다. 기존 로컬 코드(`monitor.py`, `state.json`, `config.json`, `com.joel.realestate-monitor.plist`)는 **삭제하고 신규 작성**한다. 기존 docs (`2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md`)는 역사 기록으로 유지.
 
 ---
 
@@ -19,7 +20,7 @@
 | 사이클 분석 | 대시보드 (Metabase) — 알림 X, 시각화 only |
 | 인프라 | GitHub Actions (private repo) + Supabase + Metabase + Telegram |
 | 비용 | 0원 (모든 무료 한도 내) |
-| 단지 식별 | **`apt_seq`** (Phase 1의 `name_patterns` 폐기) |
+| 단지 식별 | **`apt_seq`** (단지 고유 ID 기반 정확 매칭) |
 
 ---
 
@@ -69,9 +70,22 @@
 
 ### 1.3 디렉토리 구조
 
+신규 시스템 시작 시 기존 코드/설정 파일은 일괄 삭제하고 아래 구조로 새로 작성한다.
+
+**삭제 대상** (구현 첫 단계에서 제거):
+- `monitor.py`, `state.json`, `config.json`
+- `com.joel.realestate-monitor.plist` (launchd 해제 후)
+- `tests/` 하위 기존 파일 (fixture 포함, 신규 모듈에 맞게 재작성)
+- `.env.example`, `requirements.txt`도 신규 모듈에 맞춰 재작성
+
+**유지**:
+- `docs/2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md` — 역사 기록
+- `docs/2026-05-04-system-design.md` — 본 설계 문서
+
+**신규 구조**:
 ```
-labs/realestate_monitor/        ← 기존 위치 유지
-├── collector.py                # 클라우드 메인 (구 monitor.py 진화)
+labs/realestate_monitor/
+├── collector.py                # 메인 엔트리 (cron 호출)
 ├── lib/
 │   ├── __init__.py
 │   ├── api.py                  # 국토부 API + 전체 필드 파싱
@@ -80,22 +94,33 @@ labs/realestate_monitor/        ← 기존 위치 유지
 │   ├── db.py                   # Supabase client (UPSERT/쿼리)
 │   └── triggers.py             # edge 트리거 판정 로직
 ├── sql/
-│   ├── 001_initial_schema.sql  # 4개 테이블 + 인덱스 + view
-│   ├── 002_views.sql           # 대시보드용 추가 view·MV
+│   ├── 001_initial_schema.sql  # 4개 테이블 + 인덱스
+│   ├── 002_views.sql           # view + MV
 │   └── seed_districts.sql      # 8개 구 LAWD_CD seed
 ├── scripts/
-│   ├── backfill.py             # 1년 백필 1회성 스크립트
+│   ├── backfill.py             # 1년 백필 1회성
 │   └── seed_alerts_sent.py     # 백필 후 dedup 키 미리 채우기
 ├── .github/workflows/
-│   └── monitor.yml             # cron + secrets + 환경
-├── tests/                      # 기존 + 신규
-├── docs/
-│   ├── 2026-05-04-design.md             (Phase 1 - 유지)
-│   ├── 2026-05-04-implementation-plan.md (Phase 1 - 유지)
-│   ├── 2026-05-04-future-cloud-migration.md (Phase 1 노트 - 유지)
-│   └── 2026-05-04-phase2-design.md      (← 본 설계)
-├── monitor.py                  # Phase 1 - 종료 후 삭제
-└── com.joel.realestate-monitor.plist  # Phase 1 - 종료 후 삭제
+│   └── monitor.yml             # cron + secrets
+├── tests/
+│   ├── test_api.py             # XML 파싱 + 전체 필드
+│   ├── test_matcher.py
+│   ├── test_triggers.py
+│   ├── test_db.py              # mock Supabase client
+│   ├── test_notifier.py
+│   └── fixtures/
+│       ├── sale_response.xml
+│       ├── rent_response.xml
+│       └── error_response.xml
+├── .env.example
+├── .gitignore
+├── requirements.txt
+├── README.md
+└── docs/
+    ├── 2026-05-04-design.md                  (역사)
+    ├── 2026-05-04-implementation-plan.md     (역사)
+    ├── 2026-05-04-future-cloud-migration.md  (역사)
+    └── 2026-05-04-system-design.md           (← 본 설계, 활성)
 ```
 
 ### 1.4 보안·시크릿
@@ -438,14 +463,14 @@ for rule in alert_rules WHERE enabled AND min_jeonse_ratio IS NOT NULL:
 
 ## 4. 단지 식별 (apt_seq 기반)
 
-### 4.1 Phase 1 → 2 변화
+### 4.1 설계 원칙
 
-| 항목 | Phase 1 | Phase 2 |
-|---|---|---|
-| 단지 식별 | `name_patterns` 부분 일치 + `exclude_patterns` 배제 + 법정동 일치 | `apt_seq` 정확 일치 |
-| 매칭 코드 | `match_complex()` ~20줄 | `record["apt_seq"] == rule.apt_seq` 한 줄 |
-| 표기 흔들림 대응 | 정규화·exclude로 처리 | API가 apt_seq 안정적으로 부여 → 불요 |
-| 단지 추가 | config 편집 + 6개월 dry-run | apt_seq 확인 후 alert_rules INSERT |
+국토부 API 응답에 포함된 `aptSeq` (단지 고유 ID, 예: `11710-2412`)를 단지 식별의 PK로 사용한다.
+
+- **장점**: 표기 흔들림(공백·괄호·차수 표기 등)에 영향 없음. PK 비교 한 줄로 매칭 끝.
+- **사용자 작업**: 단지 추가 시 v_complexes view에서 apt_seq를 검색해 alert_rules에 INSERT.
+- **신축 단지**: 첫 거래 발생 후 v_complexes에 자동 등장. 그 후 alert_rules 추가.
+- **재명명·분할**: 매우 드물지만 발생 시 alert_rules에 row 2개 등록(여러 apt_seq 모두 enabled).
 
 ### 4.2 사용자 단지 추가 절차
 
@@ -640,47 +665,37 @@ ORDER BY apt_seq, size_label, month;
 
 ---
 
-## 6. 마이그레이션 단계 + 운영
+## 6. 셋업 단계 + 운영
 
-### 6.1 마이그레이션 단계 (15단계)
+### 6.1 셋업 순서 (14단계)
 
 | # | 단계 | 누가 | 소요 |
 |---|---|---|---|
+| 0 | 기존 launchd 해제 + 기존 코드 삭제 (`monitor.py`, `state.json`, `config.json`, `tests/*` legacy fixture, `.plist`) | 자동 | 2분 |
 | 1 | GitHub 가입 + 2FA + private repo `realestate-monitor` 생성 | 사용자 | 5분 |
-| 2 | GitHub PAT 발급 (repo + workflow scope) → `~/.zshrc`에 `GITHUB_TOKEN` | 사용자 | 3분 |
+| 2 | GitHub PAT 발급 (repo + workflow scope) → `~/.zshrc`에 `GITHUB_TOKEN` 등록 | 사용자 | 3분 |
 | 3 | Supabase 가입 + 프로젝트 생성 + DB 비밀번호 저장 | 사용자 | 5분 |
-| 4 | Supabase Service Role Key + URL 확인 | 사용자 | 1분 |
-| 5 | 로컬 코드 GitHub repo로 push | 자동 | 2분 |
-| 6 | Phase 2 모듈화 + SQL + 백필 스크립트 작성 | 자동 (구현) | 2~3시간 |
-| 7 | Supabase에 SQL 마이그레이션 적용 | 자동 (Supabase MCP) | 1분 |
-| 8 | `python3.11 scripts/backfill.py --months 12` 실행 | 자동 (로컬) | 5분 |
-| 9 | Supabase Studio에서 alert_rules INSERT | 사용자 | 10분 |
-| 10 | `python3.11 scripts/seed_alerts_sent.py` 실행 | 자동 | 1분 |
-| 11 | GitHub Secrets 4개 등록 | 사용자 또는 `gh secret set` | 3분 |
-| 12 | `.github/workflows/monitor.yml` push → 수동 실행 (`workflow_dispatch`) → 검증 | 자동 | 5분 |
-| 13 | Metabase Cloud 가입 → Supabase 연결 → 대시보드 구성 | 사용자 + 자동 | 30분 |
-| 14 | 카나리 1주 (Phase 1 알림 + Phase 2 dry-run) | 관찰 | 7일 |
-| 15 | Phase 2 정식 전환 + Phase 1 launchd unload | 사용자 + 자동 | 2분 |
+| 4 | Supabase Service Role Key + URL 확인 (Settings → API) | 사용자 | 1분 |
+| 5 | 신규 코드 작성 (collector.py + lib/ + sql/ + scripts/ + workflows + tests) | 자동 (구현 단계) | 2~3시간 |
+| 6 | 코드 GitHub repo로 push | 자동 | 2분 |
+| 7 | Supabase에 SQL 마이그레이션 적용 (Supabase MCP) | 자동 | 1분 |
+| 8 | `python3.11 scripts/backfill.py --months 12` 로컬 실행 | 자동 | 5분 |
+| 9 | Supabase Studio에서 `alert_rules` INSERT (관심 매물) | 사용자 | 10분 |
+| 10 | `python3.11 scripts/seed_alerts_sent.py` 실행 (백필 거래에 dedup 키 미리 채움 — 폭격 방지) | 자동 | 1분 |
+| 11 | GitHub Secrets 4개 등록 (`MOLIT_SERVICE_KEY`, `TELEGRAM_BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`) | 사용자 또는 `gh secret set` | 3분 |
+| 12 | `.github/workflows/monitor.yml` push → 수동 실행(`workflow_dispatch`) → 로그·DB 검증 | 자동 | 5분 |
+| 13 | Metabase Cloud 가입 → Supabase 연결 → 대시보드 3개 구성 | 사용자 + 자동(쿼리 제공) | 30분 |
 
-### 6.2 카나리 1주 — 병행 운영
+### 6.2 첫 가동 검증
 
-```
-┌── Phase 1 (launchd, 9·18시 KST) ──┐
-│  monitor.py --notify-on-error      │ ← 텔레그램 알림 계속
-│  state.json (로컬 dedup)            │
-└────────────────────────────────────┘
+병행 운영 없이 **직접 전환**한다 (기존 launchd는 6.1 단계 0에서 이미 해제).
 
-┌── Phase 2 (GitHub Actions) ──────────┐
-│  collector.py --dry-run               │ ← 알림 발송 X, DB UPSERT만
-│  Supabase (DB 누적, alerts_sent 기록) │
-└──────────────────────────────────────┘
-```
-
-7일 비교 방법:
-- **Phase 2 dry-run 로그 형식 표준화**: alert candidate를 한 줄당 `[CANDIDATE] type=price_threshold rule_id=... apt_seq=... deal_date=...` 형태로 stdout에 출력. GitHub Actions 로그에 그대로 보존.
-- **매일 비교**: Phase 1 텔레그램 발송 메시지 수 vs Phase 2 로그의 [CANDIDATE] 수가 일치하는가 (단, Phase 2의 jeonse_ratio 후보는 Phase 1엔 없으므로 가격 알림만 비교)
-- **DB 누적 데이터 정확성**: 대시보드에서 8개 구 모두 매일 row 수가 증가하는지 확인
-- **운영 알림(에러) 미발생** 확인 — 발생하면 7일 카운트 reset
+- 첫 cron 실행(다음 09:00 또는 18:00 KST) 또는 수동 트리거(`workflow_dispatch`) 후 다음 항목 즉시 점검:
+  1. **로그**: GitHub Actions 워크플로 로그에 에러 없음, "수집 N건 / 매칭 K건 / 발송 M건" 요약 정상.
+  2. **DB**: `SELECT COUNT(*), MAX(fetched_at) FROM sale_records;` — fetched_at가 방금 시각, count가 백필+α.
+  3. **알림**: 백필 dedup이 정상 작동했다면 첫 실행에서 알림 0~극소량. 폭격 발생 시 즉시 워크플로 disable.
+  4. **대시보드**: 차트 1-1 (관심 매물 현황)이 정상 렌더링.
+- 첫 24시간 동안 매 cron 실행마다 위 4개 점검. 이상 없으면 정착.
 
 ### 6.3 비용·한도 모니터링
 
@@ -693,35 +708,23 @@ ORDER BY apt_seq, size_label, month;
 | Telegram | 무제한 | ~수십 메시지/월 |
 
 12개월 후 한도 근접 시:
-- A. Pro 플랜 ($25/월) → 8GB
+- A. Supabase Pro 플랜 ($25/월) → 8 GB
 - B. 18개월 이전 raw 삭제 (MV 유지)
 - C. 모니터링 구 축소
 
-### 6.4 Phase 1 → 2 코드 변환 정책
-
-| Phase 1 | Phase 2 | 처리 |
-|---|---|---|
-| `monitor.py` 단일 파일 | `collector.py` + `lib/{api,matcher,notifier,db,triggers}.py` | 함수별 모듈 분리 |
-| `compute_gap()`, `format_message()` | `lib/notifier.py`, `lib/triggers.py` | 재사용 |
-| `state.json` (파일) | `alerts_sent` (Supabase) | 폐기 |
-| `match_complex()`, `name_patterns` | `apt_seq` PK 비교 | **삭제** |
-| `config.json` 단지 정의 | `alert_rules` 테이블 | 폐기 |
-| `setup_logging()` 일별 파일 | GitHub Actions log + stdout | 단순화 |
-| `monitor.py --notify-on-error` | `collector.py` (cron이 호출) | 대체 |
-| `com.joel.realestate-monitor.plist` | `.github/workflows/monitor.yml` | 대체 |
-
-### 6.5 운영 시작 후 1개월
+### 6.4 운영 시작 후 1개월
 
 ```
-Week 1 (카나리)        : 양쪽 비교, 데이터 정확성
-Week 2 (Phase 2 단독)  : 알림 누락·오발송 모니터링
-Week 3-4               : 대시보드 사용성 검증, 추가 룰 등록
-1개월 후               : 한도 점검 + 분석 인사이트 도출 시작
+Day 1     : 첫 cron 검증 (6.2의 4개 점검) + 폭격 모니터링
+Week 1    : 알림 누락·오발송·중복 점검 (alerts_sent vs 텔레그램 메시지)
+Week 2-4  : 대시보드 사용성 검증, 추가 룰 등록 시도
+1개월 후  : 한도 점검 + 분석 인사이트 도출 시작
 ```
 
-### 6.6 향후 확장 (이번 범위 외)
+### 6.5 향후 확장 (이번 범위 외)
 
 - 추가 구 확장 (노원·강서 등)
 - 사이클 알림 정교화 (3M/12M MA cross 발생 시 일회성 알림)
 - 신축 단지 자동 감지 (신규 apt_seq 등장 알림)
 - 갱신 인상률 알림 (`pre_deposit_만원` 활용)
+- 호가 데이터 통합 (현재는 합법적 API 부재로 보류)
