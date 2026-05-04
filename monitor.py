@@ -361,9 +361,41 @@ def send_telegram(token: str, chat_id: str, text: str) -> None:
         raise RuntimeError(f"텔레그램 발송 실패 ({resp.status_code}): {resp.text[:200]}")
 
 
-def setup_logging(log_dir) -> None:
-    """Task 12에서 실제 구현 예정. 현재는 no-op (basicConfig만 셋업)."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+def setup_logging(log_dir: Path) -> None:
+    log_dir.mkdir(parents=True, exist_ok=True)
+    today = datetime.now(KST).date().isoformat()
+    run_log = log_dir / f"run-{today}.log"
+    error_log = log_dir / "error.log"
+
+    fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    run_handler = logging.FileHandler(run_log, encoding="utf-8")
+    run_handler.setLevel(logging.INFO)
+    run_handler.setFormatter(fmt)
+
+    error_handler = logging.FileHandler(error_log, encoding="utf-8")
+    error_handler.setLevel(logging.ERROR)
+    error_handler.setFormatter(fmt)
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(fmt)
+
+    logger.handlers = []
+    logger.setLevel(logging.INFO)
+    logger.addHandler(run_handler)
+    logger.addHandler(error_handler)
+    logger.addHandler(console_handler)
+
+    # 90일 이상 경과 로그 정리
+    cutoff = datetime.now(KST) - timedelta(days=90)
+    for f in log_dir.glob("run-*.log"):
+        try:
+            d = datetime.strptime(f.stem.split("-", 1)[1], "%Y-%m-%d").replace(tzinfo=KST)
+            if d < cutoff:
+                f.unlink()
+        except (ValueError, IndexError):
+            continue
 
 
 def should_send_error_alert(state: dict) -> bool:
