@@ -137,25 +137,87 @@ ORDER BY 매물, s.month;
 
 ---
 
-## 차트 4. 9개 구 거래량 추이 (시장 개요)
+## 차트 4. 9개 구 거래량 추이 (매매·전월세 구분)
 
-**차트 타입**: Stacked area / Bar (x축: month, y축: 거래수, color: 구)
+**차트 타입**: Line / Bar (x축: month, y축: 매매수 / 전월세수 두 series, filter: 구)
+**용도**: 구별 매매·전월세 거래량 비교. 두 시장의 활동성 함께 추적.
 
 ```sql
+WITH s AS (
+  SELECT DATE_TRUNC('month', deal_date)::date AS month, sgg_cd, COUNT(*) AS sale_count
+  FROM sale_records
+  WHERE deal_date >= CURRENT_DATE - INTERVAL '12 months'
+  GROUP BY 1, 2
+),
+r AS (
+  SELECT DATE_TRUNC('month', contract_date)::date AS month, sgg_cd, COUNT(*) AS rent_count
+  FROM rent_records
+  WHERE contract_date >= CURRENT_DATE - INTERVAL '12 months'
+  GROUP BY 1, 2
+)
 SELECT
-  DATE_TRUNC('month', deal_date)::date AS month,
-  CASE sgg_cd
+  COALESCE(s.month, r.month) AS month,
+  CASE COALESCE(s.sgg_cd, r.sgg_cd)
     WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
     WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
     WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
     WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
     WHEN '11740' THEN '강동'
   END AS 구,
+  COALESCE(s.sale_count, 0) AS 매매수,
+  COALESCE(r.rent_count, 0) AS 전월세수,
+  COALESCE(s.sale_count, 0) + COALESCE(r.rent_count, 0) AS 전체거래수
+FROM s
+FULL OUTER JOIN r USING (month, sgg_cd)
+ORDER BY month, 구;
+```
+
+> **차트 구성 팁**:
+> - **Wide format** — Studio Reports에서 매매수와 전월세수를 각각 다른 색깔의 라인/막대로 동시 표시. 구는 filter로 선택.
+> - **Stacked area** 원하면: x=month, y1=매매수, y2=전월세수 (구는 한 번에 하나만 보거나 SUM)
+> - 단지 정렬 (구 단위 비교) 시 `GROUP BY 구` 추가하여 누적 표시 가능
+
+### 차트 4-대안. Long format (Stacked area / Group bar 차트용)
+
+매매·전월세를 series로 stack/grouped 비교하고 싶으면 long 포맷 사용:
+
+```sql
+SELECT
+  month,
+  구,
+  거래유형,
   COUNT(*) AS 거래수
-FROM sale_records
-WHERE deal_date >= CURRENT_DATE - INTERVAL '12 months'
-GROUP BY 1, 2
-ORDER BY 1, 2;
+FROM (
+  SELECT
+    DATE_TRUNC('month', deal_date)::date AS month,
+    CASE sgg_cd
+      WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
+      WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
+      WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
+      WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
+      WHEN '11740' THEN '강동'
+    END AS 구,
+    '매매' AS 거래유형
+  FROM sale_records
+  WHERE deal_date >= CURRENT_DATE - INTERVAL '12 months'
+
+  UNION ALL
+
+  SELECT
+    DATE_TRUNC('month', contract_date)::date,
+    CASE sgg_cd
+      WHEN '11200' THEN '성동'  WHEN '11215' THEN '광진'
+      WHEN '11440' THEN '마포'  WHEN '11650' THEN '서초'
+      WHEN '11680' THEN '강남'  WHEN '11710' THEN '송파'
+      WHEN '11170' THEN '용산'  WHEN '11590' THEN '동작'
+      WHEN '11740' THEN '강동'
+    END,
+    '전월세'
+  FROM rent_records
+  WHERE contract_date >= CURRENT_DATE - INTERVAL '12 months'
+) t
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3;
 ```
 
 ---
