@@ -279,7 +279,7 @@ def main() -> int:
     new_rents: list[dict] = []
 
     if not args.skip_fetch:
-        logger.info("데이터 수집 시작 (직전 %d개월, 8개 구)", args.backfill_months)
+        logger.info("데이터 수집 시작 (직전 %d개월, %d개 구)", args.backfill_months, len(DISTRICT_LAWD_CDS))
         sales, rents = collect_records(service_key, args.backfill_months)
         logger.info("수집 완료: 매매 %d건, 전월세 %d건", len(sales), len(rents))
 
