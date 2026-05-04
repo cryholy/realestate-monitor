@@ -90,3 +90,11 @@ LANGUAGE sql STABLE AS $$
     AND monthly_rent_만원 = 0
     AND contract_date >= CURRENT_DATE - p_days;
 $$;
+
+-- collector.py의 refresh_materialized_views가 호출
+CREATE OR REPLACE FUNCTION refresh_monthly_stats()
+RETURNS void
+LANGUAGE sql AS $$
+  REFRESH MATERIALIZED VIEW mv_monthly_sale_stats;
+  REFRESH MATERIALIZED VIEW mv_monthly_rent_stats;
+$$;
