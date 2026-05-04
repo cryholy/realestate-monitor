@@ -38,6 +38,34 @@ def test_parse_xml_rent(rent_xml):
     assert pure_jeonse[0]["계약구분"] == "신규"
 
 
+def test_parse_xml_raises_on_gateway_error():
+    """API 게이트웨이 에러 (잘못된 키) — OpenAPI_ServiceResponse 형식."""
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<OpenAPI_ServiceResponse>
+  <cmmMsgHeader>
+    <errMsg>SERVICE ERROR</errMsg>
+    <returnAuthMsg>SERVICE_KEY_IS_NOT_REGISTERED_ERROR</returnAuthMsg>
+    <returnReasonCode>30</returnReasonCode>
+  </cmmMsgHeader>
+</OpenAPI_ServiceResponse>"""
+    with pytest.raises(RuntimeError, match="게이트웨이"):
+        parse_xml(xml, kind="sale")
+
+
+def test_parse_xml_raises_on_service_error():
+    """서비스 레벨 에러 — resultCode != 00."""
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<response>
+  <header>
+    <resultCode>22</resultCode>
+    <resultMsg>LIMITED_NUMBER_OF_SERVICE_REQUESTS_PER_HOUR</resultMsg>
+  </header>
+  <body><items></items></body>
+</response>"""
+    with pytest.raises(RuntimeError, match="resultCode=22"):
+        parse_xml(xml, kind="sale")
+
+
 @patch("monitor._api_get")
 def test_fetch_sales_calls_endpoint(mock_get, sale_xml):
     mock_get.return_value = sale_xml

@@ -41,11 +41,30 @@ def parse_xml(xml_text: str, kind: str) -> list[dict]:
     """국토부 실거래가 API 응답 파싱.
 
     kind: "sale" | "rent"
+
+    resultCode가 "00"이 아니면 RuntimeError 발생 (silent failure 방지).
     """
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as e:
         raise ValueError(f"XML 파싱 실패: {e}") from e
+
+    # 게이트웨이 에러 (잘못된 키 등) — 응답 root가 OpenAPI_ServiceResponse
+    reason_el = root.find(".//returnReasonCode")
+    if reason_el is not None and reason_el.text:
+        auth_el = root.find(".//returnAuthMsg")
+        err_el = root.find(".//errMsg")
+        msg = (auth_el.text if auth_el is not None and auth_el.text else "") or (
+            err_el.text if err_el is not None and err_el.text else ""
+        )
+        raise RuntimeError(f"API 게이트웨이 오류 reasonCode={reason_el.text.strip()} ({msg})")
+
+    # 서비스 레벨 에러 (한도 초과 등) — resultCode != "00"
+    code_el = root.find(".//resultCode")
+    if code_el is not None and code_el.text and code_el.text.strip() != "00":
+        msg_el = root.find(".//resultMsg")
+        msg = msg_el.text.strip() if msg_el is not None and msg_el.text else ""
+        raise RuntimeError(f"API 오류 resultCode={code_el.text.strip()} ({msg})")
 
     items = root.findall(".//item")
     records = []
@@ -474,11 +493,8 @@ def _find_matches(sales: list[dict], config: dict) -> list[dict]:
 
 def _build_gap(match: dict, rents: list[dict], config: dict) -> dict:
     same_complex_key = match["complex_key"]
-    complex_def = next(c for c in config["complexes"] if c["key"] == same_complex_key)
     same_complex_rents = [
-        r for r in rents
-        if normalize(r["아파트"]).startswith(normalize(complex_def["name_patterns"][0])[:6])
-        and r["법정동"] == complex_def["법정동"]
+        r for r in rents if match_complex(r, config["complexes"]) == same_complex_key
     ]
     size_range = config["size_ranges"][match["size_label"]]
     return compute_gap(
