@@ -22,24 +22,41 @@ def _text(item: ET.Element, tag: str) -> str:
 
 def _int_or_none(s: str) -> Optional[int]:
     s = s.replace(",", "").replace(" ", "")
-    return int(s) if s else None
+    if not s:
+        return None
+    try:
+        return int(s)
+    except ValueError:
+        return None
+
+
+def _ymd_or_none(year: str, month: str, day: str) -> Optional[str]:
+    """y/m/d 문자열 → 'YYYY-MM-DD' 또는 None (잘못된 값 방어)."""
+    try:
+        y, m, d = int(year), int(month), int(day)
+    except (ValueError, TypeError):
+        return None
+    if not (1900 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31):
+        return None
+    return f"{y:04d}-{m:02d}-{d:02d}"
+
+
+def _yyyymmdd_or_none(s: str) -> Optional[str]:
+    """8자리 YYYYMMDD 문자열 → 'YYYY-MM-DD' 또는 None."""
+    if not s or len(s) != 8 or not s.isdigit():
+        return None
+    return _ymd_or_none(s[:4], s[4:6], s[6:8])
 
 
 def _parse_sale_item(item: ET.Element) -> dict:
-    year = _text(item, "dealYear")
-    month = _text(item, "dealMonth").zfill(2)
-    day = _text(item, "dealDay").zfill(2)
-    deal_date = f"{year}-{month}-{day}" if year else None
+    deal_date = _ymd_or_none(
+        _text(item, "dealYear"),
+        _text(item, "dealMonth"),
+        _text(item, "dealDay"),
+    )
 
-    cancel_year_month_day = _text(item, "cdealDay")
-    cancel_date = None
-    if cancel_year_month_day and len(cancel_year_month_day) == 8:
-        cancel_date = f"{cancel_year_month_day[:4]}-{cancel_year_month_day[4:6]}-{cancel_year_month_day[6:8]}"
-
-    rgst = _text(item, "rgstDate")
-    register_date = None
-    if rgst and len(rgst) == 8:
-        register_date = f"{rgst[:4]}-{rgst[4:6]}-{rgst[6:8]}"
+    cancel_date = _yyyymmdd_or_none(_text(item, "cdealDay"))
+    register_date = _yyyymmdd_or_none(_text(item, "rgstDate"))
 
     road_bonbun = _text(item, "roadNmBonbun").lstrip("0") or "0"
     road_bubun = _text(item, "roadNmBubun").lstrip("0")
@@ -79,10 +96,11 @@ def _parse_sale_item(item: ET.Element) -> dict:
 
 
 def _parse_rent_item(item: ET.Element) -> dict:
-    year = _text(item, "dealYear")
-    month = _text(item, "dealMonth").zfill(2)
-    day = _text(item, "dealDay").zfill(2)
-    contract_date = f"{year}-{month}-{day}" if year else None
+    contract_date = _ymd_or_none(
+        _text(item, "dealYear"),
+        _text(item, "dealMonth"),
+        _text(item, "dealDay"),
+    )
     area = float(_text(item, "excluUseAr") or 0)
 
     return {
@@ -136,12 +154,15 @@ def parse_xml(xml_text: str, kind: str) -> list[dict]:
 
     if kind == "sale":
         parser = _parse_sale_item
+        date_field = "deal_date"
     elif kind == "rent":
         parser = _parse_rent_item
+        date_field = "contract_date"
     else:
         raise ValueError(f"알 수 없는 kind: {kind}")
 
-    return [parser(item) for item in root.findall(".//item")]
+    # date 파싱 실패한 record는 DB INSERT 불가 (NOT NULL) → 필터링
+    return [r for r in (parser(item) for item in root.findall(".//item")) if r.get(date_field)]
 
 
 def make_record_id(record: dict, kind: str) -> str:
