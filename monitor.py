@@ -1,8 +1,10 @@
 """부동산 실거래가·전월세 모니터링."""
 import json
 import os
+import statistics
 import time
 import xml.etree.ElementTree as ET
+from datetime import datetime, timedelta
 
 import requests
 
@@ -182,3 +184,58 @@ def filter_size(record: dict, size_ranges: dict) -> str | None:
 def filter_price(record: dict, max_price_만원: int) -> bool:
     """거래금액이 임계값 미만이면 True."""
     return record["거래금액"] < max_price_만원
+
+
+def compute_gap(
+    *,
+    complex_key: str,
+    size_label: str,
+    size_range: tuple[float, float],
+    sale_price: int,
+    rent_records: list[dict],
+    lookback_days: int,
+    extended_lookback_days: int,
+    min_samples: int,
+    today: str,
+) -> dict:
+    """매매가 대비 직전 90일 전세 보증금 중위값 + 갭 정보 반환."""
+    today_dt = datetime.fromisoformat(today)
+
+    def _filter(records, days):
+        cutoff = today_dt - timedelta(days=days)
+        return [
+            r for r in records
+            if r.get("월세", 0) == 0
+            and size_range[0] <= r["전용면적"] <= size_range[1]
+            and r.get("계약일")
+            and datetime.fromisoformat(r["계약일"]) >= cutoff
+        ]
+
+    pool = _filter(rent_records, lookback_days)
+    used_extended = False
+    if len(pool) < min_samples:
+        pool = _filter(rent_records, extended_lookback_days)
+        used_extended = True
+
+    if len(pool) < min_samples:
+        return {
+            "sample_count": len(pool),
+            "median_보증금": None,
+            "min_보증금": None,
+            "max_보증금": None,
+            "gap": None,
+            "used_extended": used_extended,
+            "lookback_days_actual": extended_lookback_days if used_extended else lookback_days,
+        }
+
+    deposits = [r["보증금"] for r in pool]
+    median = int(statistics.median(deposits))
+    return {
+        "sample_count": len(pool),
+        "median_보증금": median,
+        "min_보증금": min(deposits),
+        "max_보증금": max(deposits),
+        "gap": sale_price - median,
+        "used_extended": used_extended,
+        "lookback_days_actual": extended_lookback_days if used_extended else lookback_days,
+    }
