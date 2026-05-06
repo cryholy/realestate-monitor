@@ -11,8 +11,11 @@ import os
 import sys
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from lib.notifier import send_telegram
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.notifier import send_telegram  # noqa: E402
 
 
 WORKFLOW_FILE = "monitor.yml"
