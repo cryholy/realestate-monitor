@@ -22,6 +22,17 @@ WORKFLOW_FILE = "monitor.yml"
 KST = timezone(timedelta(hours=9))
 
 
+def humanize_delta(delta_h: float) -> str:
+    """0.5 → '30분', 24.5 → '24시간 30분'."""
+    total_min = int(delta_h * 60)
+    hours, mins = divmod(total_min, 60)
+    if hours == 0:
+        return f"{mins}분"
+    if mins == 0:
+        return f"{hours}시간"
+    return f"{hours}시간 {mins}분"
+
+
 def latest_scheduled_success(*, repo: str, token: str) -> datetime | None:
     """monitor.yml의 schedule 이벤트 중 가장 최근 success run의 created_at."""
     url = (
@@ -71,23 +82,28 @@ def main() -> int:
         return 0
 
     now_kst = now.astimezone(KST).strftime("%Y-%m-%d %H:%M KST")
+    threshold_str = humanize_delta(threshold_hours)
     if last is None:
         alert_text = (
-            "🚨 monitor.yml schedule 누락\n\n"
-            "schedule 이벤트로 성공한 기록이 한 번도 없습니다.\n"
-            f"확인 시각  {now_kst}\n\n"
-            "→ gh workflow run monitor.yml --repo " + repo + "\n"
-            "→ Actions 탭에서 cron 등록 상태 점검"
+            "🚨 부동산 데이터 자동 수집이 한 번도 동작하지 않았어요\n\n"
+            "매일 18:00에 자동 실행되도록 cron이 설정되어 있지만,\n"
+            "실제로 자동 트리거된 기록이 없습니다.\n"
+            f"(수동 실행은 별개. 확인 시각: {now_kst})\n\n"
+            "▶︎ 점검\n"
+            f"  • GitHub Actions에서 monitor.yml 활성 상태인지\n"
+            f"  • 임시로 수동 실행:\n"
+            f"    gh workflow run monitor.yml --repo {repo}"
         )
     else:
         last_kst = last.astimezone(KST).strftime("%Y-%m-%d %H:%M KST")
-        delta_min = int(delta_h * 60)
-        threshold_min = int(threshold_hours * 60)
+        delay_str = humanize_delta(delta_h)
         alert_text = (
-            f"🚨 monitor.yml schedule 지연 ({delta_min}분 / 임계 {threshold_min}분)\n\n"
-            f"마지막 성공  {last_kst}\n"
-            f"확인 시각    {now_kst}\n\n"
-            "→ gh workflow run monitor.yml --repo " + repo
+            f"🚨 부동산 데이터 수집이 {delay_str}째 동작하지 않았어요\n\n"
+            "매일 18:00에 돌아야 할 자동 수집이 멈춘 상태입니다.\n"
+            f"(허용 지연: {threshold_str})\n\n"
+            f"마지막 수집  {last_kst}\n"
+            f"현재         {now_kst}\n\n"
+            f"▶︎ 수동 실행: gh workflow run monitor.yml --repo {repo}"
         )
 
     send_telegram(token=bot_token, chat_id=chat_id, text=alert_text)
