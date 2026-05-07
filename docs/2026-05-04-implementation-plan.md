@@ -134,10 +134,10 @@ def sample_config():
         "complexes": [
             {
                 "key": "seoulsupp_1",
-                "display_name": "서울숲푸르지오",
+                "display_name": "예시단지B",
                 "lawd_cd": "11200",
                 "법정동": "성수동1가",
-                "name_patterns": ["서울숲푸르지오"],
+                "name_patterns": ["예시단지B"],
                 "exclude_patterns": ["2차", "Ⅱ", "시티"],
             },
         ],
@@ -190,7 +190,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <거래일>28</거래일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
+        <아파트>예시단지B</아파트>
         <전용면적>84.92</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -203,7 +203,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <거래일>15</거래일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
+        <아파트>예시단지B</아파트>
         <전용면적>59.97</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -216,7 +216,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <거래일>10</거래일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오시티</아파트>
+        <아파트>예시단지B시티</아파트>
         <전용면적>84.50</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -248,7 +248,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <계약년월일>20260315</계약년월일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
+        <아파트>예시단지B</아파트>
         <전용면적>84.92</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -261,7 +261,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <계약년월일>20260328</계약년월일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
+        <아파트>예시단지B</아파트>
         <전용면적>84.92</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -274,7 +274,7 @@ git commit -m "feat(realestate_monitor): 프로젝트 스켈레톤"
         <계약년월일>20260320</계약년월일>
         <건축년도>2003</건축년도>
         <법정동> 성수동1가</법정동>
-        <아파트>서울숲푸르지오</아파트>
+        <아파트>예시단지B</아파트>
         <전용면적>84.92</전용면적>
         <지번>668</지번>
         <지역코드>11200</지역코드>
@@ -413,31 +413,31 @@ Expected: 2 passed
   "complexes": [
     {
       "key": "seoulsupp_1",
-      "display_name": "서울숲푸르지오",
+      "display_name": "예시단지B",
       "lawd_cd": "11200",
       "법정동": "성수동1가",
-      "name_patterns": ["서울숲푸르지오"],
+      "name_patterns": ["예시단지B"],
       "exclude_patterns": ["2차", "Ⅱ", "시티"]
     },
     {
       "key": "seoulsupp_2",
-      "display_name": "서울숲푸르지오 2차",
+      "display_name": "예시단지B 2차",
       "lawd_cd": "11200",
       "법정동": "성수동1가",
-      "name_patterns": ["서울숲푸르지오2차", "서울숲푸르지오Ⅱ"],
+      "name_patterns": ["예시단지B2차", "예시단지BⅡ"],
       "exclude_patterns": []
     },
     {
       "key": "guui_lottecastle_eastpole",
-      "display_name": "구의롯데캐슬이스트폴",
+      "display_name": "예시단지C",
       "lawd_cd": "11215",
       "법정동": "구의동",
-      "name_patterns": ["구의롯데캐슬이스트폴", "롯데캐슬이스트폴"],
+      "name_patterns": ["예시단지C", "예시단지C"],
       "exclude_patterns": []
     },
     {
       "key": "jayang_hanyang",
-      "display_name": "자양 한양",
+      "display_name": "예시단지D",
       "lawd_cd": "11215",
       "법정동": "자양동",
       "name_patterns": ["자양한양", "한양"],
@@ -445,7 +445,7 @@ Expected: 2 passed
     },
     {
       "key": "kwangjang_geukdong_1",
-      "display_name": "광장 극동 1차",
+      "display_name": "예시단지E1",
       "lawd_cd": "11215",
       "법정동": "광장동",
       "name_patterns": ["극동1차", "극동(1차)", "극동 1"],
@@ -453,7 +453,7 @@ Expected: 2 passed
     },
     {
       "key": "kwangjang_geukdong_2",
-      "display_name": "광장 극동 2차",
+      "display_name": "예시단지E2",
       "lawd_cd": "11215",
       "법정동": "광장동",
       "name_patterns": ["극동2차", "극동(2차)", "극동 2", "극동Ⅱ"],
@@ -461,10 +461,10 @@ Expected: 2 passed
     },
     {
       "key": "oksu_heights",
-      "display_name": "옥수하이츠",
+      "display_name": "예시단지F",
       "lawd_cd": "11200",
       "법정동": "옥수동",
-      "name_patterns": ["옥수하이츠"],
+      "name_patterns": ["예시단지F"],
       "exclude_patterns": []
     }
   ],
@@ -513,7 +513,7 @@ def test_parse_xml_sale(sale_xml):
 
     assert len(records) == 3
     first = records[0]
-    assert first["아파트"] == "서울숲푸르지오"
+    assert first["아파트"] == "예시단지B"
     assert first["법정동"] == "성수동1가"
     assert first["전용면적"] == 84.92
     assert first["거래금액"] == 198000  # 만원, 콤마 제거 + int
@@ -756,7 +756,7 @@ from monitor import normalize, match_complex
 
 
 def test_normalize_strips_whitespace_and_lowercases():
-    assert normalize("서울숲 푸르지오 ") == "서울숲푸르지오"
+    assert normalize("예시 단지B ") == "예시단지B"
     assert normalize("LOTTE Castle") == "lottecastle"
 
 
@@ -767,41 +767,41 @@ def complexes():
             "key": "seoulsupp_1",
             "lawd_cd": "11200",
             "법정동": "성수동1가",
-            "name_patterns": ["서울숲푸르지오"],
+            "name_patterns": ["예시단지B"],
             "exclude_patterns": ["2차", "Ⅱ", "시티"],
         },
         {
             "key": "seoulsupp_2",
             "lawd_cd": "11200",
             "법정동": "성수동1가",
-            "name_patterns": ["서울숲푸르지오2차", "서울숲푸르지오Ⅱ"],
+            "name_patterns": ["예시단지B2차", "예시단지BⅡ"],
             "exclude_patterns": [],
         },
     ]
 
 
 def test_match_basic(complexes):
-    record = {"아파트": "서울숲푸르지오", "법정동": "성수동1가"}
+    record = {"아파트": "예시단지B", "법정동": "성수동1가"}
     assert match_complex(record, complexes) == "seoulsupp_1"
 
 
 def test_match_with_whitespace(complexes):
-    record = {"아파트": "서울숲 푸르지오", "법정동": "성수동1가"}
+    record = {"아파트": "예시 단지B", "법정동": "성수동1가"}
     assert match_complex(record, complexes) == "seoulsupp_1"
 
 
 def test_match_excludes_2차(complexes):
-    record = {"아파트": "서울숲푸르지오2차", "법정동": "성수동1가"}
+    record = {"아파트": "예시단지B2차", "법정동": "성수동1가"}
     assert match_complex(record, complexes) == "seoulsupp_2"
 
 
 def test_match_excludes_시티(complexes):
-    record = {"아파트": "서울숲푸르지오시티", "법정동": "성수동1가"}
+    record = {"아파트": "예시단지B시티", "법정동": "성수동1가"}
     assert match_complex(record, complexes) is None
 
 
 def test_match_wrong_법정동(complexes):
-    record = {"아파트": "서울숲푸르지오", "법정동": "성수동2가"}
+    record = {"아파트": "예시단지B", "법정동": "성수동2가"}
     assert match_complex(record, complexes) is None
 ```
 
@@ -974,7 +974,7 @@ def make_rent(deposit, days_ago, area=84.92, monthly=0):
     from datetime import datetime, timedelta
     d = (datetime(2026, 5, 4) - timedelta(days=days_ago)).strftime("%Y-%m-%d")
     return {
-        "아파트": "서울숲푸르지오",
+        "아파트": "예시단지B",
         "법정동": "성수동1가",
         "전용면적": area,
         "보증금": deposit,
@@ -1222,7 +1222,7 @@ def test_save_state_is_atomic(tmp_path):
 
 def test_make_record_id_deterministic():
     record = {
-        "아파트": "서울숲푸르지오",
+        "아파트": "예시단지B",
         "법정동": "성수동1가",
         "전용면적": 84.92,
         "거래일": "2026-04-28",
@@ -1241,7 +1241,7 @@ def test_make_record_id_deterministic():
 def test_is_duplicate_and_add():
     state = {"last_run": None, "last_error_notified_at": None, "alerted_sales": []}
     record = {
-        "아파트": "서울숲푸르지오",
+        "아파트": "예시단지B",
         "법정동": "성수동1가",
         "전용면적": 84.92,
         "거래일": "2026-04-28",
@@ -1392,7 +1392,7 @@ from monitor import format_message, send_telegram
 
 def test_format_message_with_gap():
     match = {
-        "complex_display": "서울숲푸르지오",
+        "complex_display": "예시단지B",
         "size_label": "84",
         "거래금액": 198000,
         "층": 15,
@@ -1409,7 +1409,7 @@ def test_format_message_with_gap():
     }
     msg = format_message(match, gap_info)
 
-    assert "서울숲푸르지오 84㎡" in msg
+    assert "예시단지B 84㎡" in msg
     assert "19억 8,000" in msg
     assert "15층" in msg
     assert "2026-04-28" in msg
@@ -1421,7 +1421,7 @@ def test_format_message_with_gap():
 
 def test_format_message_insufficient_rent_samples():
     match = {
-        "complex_display": "옥수하이츠",
+        "complex_display": "예시단지F",
         "size_label": "84",
         "거래금액": 195000,
         "층": 10,
