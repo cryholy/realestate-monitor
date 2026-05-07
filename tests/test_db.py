@@ -12,8 +12,8 @@ def mock_supabase():
 
 def test_upsert_records_calls_upsert_with_ignore(mock_supabase):
     records = [
-        {"id": "abc", "apt_seq": "11710-2412", "price_만원": 198000},
-        {"id": "def", "apt_seq": "11710-2412", "price_만원": 175000},
+        {"id": "abc", "apt_seq": "11000-0001", "price_만원": 198000},
+        {"id": "def", "apt_seq": "11000-0001", "price_만원": 175000},
     ]
     mock_supabase.table.return_value.upsert.return_value.execute.return_value.data = records
 
@@ -32,7 +32,7 @@ def test_upsert_records_empty_returns_early(mock_supabase):
 
 
 def test_load_alert_rules_filters_enabled(mock_supabase):
-    rules = [{"id": "r1", "apt_seq": "11710-2412", "enabled": True}]
+    rules = [{"id": "r1", "apt_seq": "11000-0001", "enabled": True}]
     mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = rules
 
     result = load_alert_rules(mock_supabase)
