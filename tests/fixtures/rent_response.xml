@@ -7,8 +7,8 @@
   <body>
     <items>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractTerm>202504~202704</contractTerm>
         <contractType>신규</contractType>
@@ -27,8 +27,8 @@
         <useRRRight></useRRRight>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractType>갱신</contractType>
         <dealDay>28</dealDay>
@@ -45,8 +45,8 @@
         <useRRRight>사용</useRRRight>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractType>신규</contractType>
         <dealDay>20</dealDay>

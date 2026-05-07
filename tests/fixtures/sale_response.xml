@@ -8,8 +8,8 @@
     <items>
       <item>
         <aptDong></aptDong>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <bonbun>0001</bonbun>
         <bubun>0000</bubun>
         <buildYear>2018</buildYear>
@@ -41,8 +41,8 @@
         <umdNm>가락동</umdNm>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <buyerGbn>법인</buyerGbn>
         <dealAmount> 175,000</dealAmount>
