@@ -425,7 +425,7 @@ for rule in alert_rules WHERE enabled AND min_jeonse_ratio IS NOT NULL:
 #### Price threshold
 
 ```
-🏠 매매가 임계값 도달 (헬리오시티 84㎡)
+🏠 매매가 임계값 도달 (예시단지A 84㎡)
 
 💰 매매가  19억 8,000 (15층, 2026-05-04 신고)
 📊 직전 90일 전세 시세 (84㎡, 12건)
@@ -438,7 +438,7 @@ for rule in alert_rules WHERE enabled AND min_jeonse_ratio IS NOT NULL:
 #### Jeonse ratio
 
 ```
-📈 전세가율 임계값 도달 (헬리오시티 84㎡, 65% ↑)
+📈 전세가율 임계값 도달 (예시단지A 84㎡, 65% ↑)
 
 📊 직전 90일 중위값
    • 매매  19억 5,000
@@ -465,7 +465,7 @@ for rule in alert_rules WHERE enabled AND min_jeonse_ratio IS NOT NULL:
 
 ### 4.1 설계 원칙
 
-국토부 API 응답에 포함된 `aptSeq` (단지 고유 ID, 예: `11710-2412`)를 단지 식별의 PK로 사용한다.
+국토부 API 응답에 포함된 `aptSeq` (단지 고유 ID, 예: `11000-0001`)를 단지 식별의 PK로 사용한다.
 
 - **장점**: 표기 흔들림(공백·괄호·차수 표기 등)에 영향 없음. PK 비교 한 줄로 매칭 끝.
 - **사용자 작업**: 단지 추가 시 v_complexes view에서 apt_seq를 검색해 alert_rules에 INSERT.
@@ -478,7 +478,7 @@ for rule in alert_rules WHERE enabled AND min_jeonse_ratio IS NOT NULL:
 
 ```sql
 SELECT * FROM v_complexes
-WHERE apt_name LIKE '%헬리오시티%'
+WHERE apt_name LIKE '%예시단지A%'
   AND sgg_cd = '11710'
 ORDER BY sale_records_count DESC;
 ```
@@ -487,8 +487,8 @@ ORDER BY sale_records_count DESC;
 
 | 컬럼 | 입력 |
 |---|---|
-| apt_seq | `11710-2412` |
-| display_name | `헬리오시티` |
+| apt_seq | `11000-0001` |
+| display_name | `예시단지A` |
 | size_label | `84` |
 | max_price_만원 | `200000` |
 | min_jeonse_ratio | `0.65` |
@@ -497,7 +497,7 @@ ORDER BY sale_records_count DESC;
 #### 3단계: 검증 (선택)
 
 ```sql
-SELECT * FROM v_alert_rules_check WHERE display_name = '헬리오시티';
+SELECT * FROM v_alert_rules_check WHERE display_name = '예시단지A';
 -- validation 컬럼이 ✅ OK인지 확인
 ```
 

@@ -7,10 +7,10 @@ from lib.triggers import (
 
 
 def test_evaluate_price_below_threshold():
-    record = {"id": "abc123", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc123", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 198000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "rule1", "apt_seq": "11710-2412", "size_label": "84",
-            "max_price_만원": 200000, "enabled": True, "display_name": "헬리오시티"}
+    rule = {"id": "rule1", "apt_seq": "11000-0001", "size_label": "84",
+            "max_price_만원": 200000, "enabled": True, "display_name": "예시단지A"}
 
     cands = evaluate_price_threshold([record], [rule])
 
@@ -24,26 +24,26 @@ def test_evaluate_price_below_threshold():
 
 
 def test_evaluate_price_above_threshold():
-    record = {"id": "abc", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 220000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "max_price_만원": 200000, "enabled": True, "display_name": "X"}
 
     assert evaluate_price_threshold([record], [rule]) == []
 
 
 def test_evaluate_price_skipped_when_max_price_null():
-    record = {"id": "abc", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 100000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "max_price_만원": None, "enabled": True, "display_name": "X"}
 
     assert evaluate_price_threshold([record], [rule]) == []
 
 
 def test_evaluate_jeonse_ratio_above_threshold():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
-            "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "헬리오시티"}
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
+            "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "예시단지A"}
 
     cands = evaluate_jeonse_ratio(
         rules=[rule],
@@ -63,7 +63,7 @@ def test_evaluate_jeonse_ratio_above_threshold():
 
 
 def test_evaluate_jeonse_ratio_below_threshold():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "X"}
 
     cands = evaluate_jeonse_ratio(
@@ -77,7 +77,7 @@ def test_evaluate_jeonse_ratio_below_threshold():
 
 
 def test_evaluate_jeonse_ratio_insufficient_samples():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "X"}
 
     cands = evaluate_jeonse_ratio(
@@ -91,7 +91,7 @@ def test_evaluate_jeonse_ratio_insufficient_samples():
 
 
 def test_evaluate_jeonse_ratio_skipped_when_min_null():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": None, "enabled": True, "display_name": "X"}
 
     cands = evaluate_jeonse_ratio(

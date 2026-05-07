@@ -11,8 +11,8 @@ def test_parse_xml_sale(sale_xml):
     assert len(records) == 2
 
     r0 = records[0]
-    assert r0["apt_seq"] == "11710-2412"
-    assert r0["apt_name"] == "헬리오시티"
+    assert r0["apt_seq"] == "11000-0001"
+    assert r0["apt_name"] == "예시단지A"
     assert r0["umd_nm"] == "가락동"
     assert r0["sgg_cd"] == "11710"
     assert r0["umd_cd"] == "11500"
@@ -43,7 +43,7 @@ def test_parse_xml_rent(rent_xml):
     assert len(records) == 3
 
     r0 = records[0]
-    assert r0["apt_seq"] == "11710-2412"
+    assert r0["apt_seq"] == "11000-0001"
     assert r0["deposit_만원"] == 125000
     assert r0["monthly_rent_만원"] == 0
     assert r0["contract_date"] == "2026-03-15"
@@ -80,7 +80,7 @@ def test_parse_xml_service_error():
 
 def test_make_record_id_deterministic():
     rec = {
-        "apt_seq": "11710-2412",
+        "apt_seq": "11000-0001",
         "deal_date": "2026-04-28",
         "floor": 15,
         "price_만원": 198000,
@@ -94,7 +94,7 @@ def test_make_record_id_deterministic():
 
 def test_make_record_id_differs_by_kind():
     rec = {
-        "apt_seq": "11710-2412",
+        "apt_seq": "11000-0001",
         "deal_date": "2026-04-28",
         "contract_date": "2026-04-28",
         "floor": 15,

@@ -99,7 +99,7 @@ laptop-independent 운영이 필요해지면 GitHub Actions + 클라우드 DB로
 **Before** (`config.json`):
 ```json
 {
-  "name_patterns": ["서울숲푸르지오"],
+  "name_patterns": ["예시단지B"],
   "exclude_patterns": ["2차", "Ⅱ", "시티", "행당"]
 }
 ```

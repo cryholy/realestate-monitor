@@ -57,11 +57,11 @@ python3.11 scripts/backfill.py --months 12
 ```sql
 -- 단지 검색
 SELECT * FROM v_complexes
-WHERE apt_name LIKE '%헬리오시티%' AND sgg_cd = '11710';
+WHERE apt_name LIKE '%예시단지A%' AND sgg_cd = '11710';
 
 -- alert_rules INSERT
 INSERT INTO alert_rules (apt_seq, display_name, size_label, max_price_만원, min_jeonse_ratio)
-VALUES ('11710-2412', '헬리오시티', '84', 200000, 0.65);
+VALUES ('11000-0001', '예시단지A', '84', 200000, 0.65);
 
 -- 검증
 SELECT * FROM v_alert_rules_check;

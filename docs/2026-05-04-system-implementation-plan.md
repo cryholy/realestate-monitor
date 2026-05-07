@@ -227,8 +227,8 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
     <items>
       <item>
         <aptDong></aptDong>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <bonbun>0001</bonbun>
         <bubun>0000</bubun>
         <buildYear>2018</buildYear>
@@ -260,8 +260,8 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
         <umdNm>가락동</umdNm>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <buyerGbn>법인</buyerGbn>
         <dealAmount> 175,000</dealAmount>
@@ -295,8 +295,8 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
   <body>
     <items>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractTerm>202504~202704</contractTerm>
         <contractType>신규</contractType>
@@ -315,8 +315,8 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
         <useRRRight></useRRRight>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractType>갱신</contractType>
         <dealDay>28</dealDay>
@@ -333,8 +333,8 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
         <useRRRight>사용</useRRRight>
       </item>
       <item>
-        <aptNm>헬리오시티</aptNm>
-        <aptSeq>11710-2412</aptSeq>
+        <aptNm>예시단지A</aptNm>
+        <aptSeq>11000-0001</aptSeq>
         <buildYear>2018</buildYear>
         <contractType>신규</contractType>
         <dealDay>20</dealDay>
@@ -493,28 +493,28 @@ from lib.matcher import match_alert_rules
 
 
 def test_match_apt_seq_and_size():
-    record = {"apt_seq": "11710-2412", "size_label": "84"}
+    record = {"apt_seq": "11000-0001", "size_label": "84"}
     rules = [
-        {"id": "r1", "apt_seq": "11710-2412", "size_label": "84", "enabled": True},
-        {"id": "r2", "apt_seq": "11710-2412", "size_label": "59", "enabled": True},
+        {"id": "r1", "apt_seq": "11000-0001", "size_label": "84", "enabled": True},
+        {"id": "r2", "apt_seq": "11000-0001", "size_label": "59", "enabled": True},
         {"id": "r3", "apt_seq": "11200-81",   "size_label": "84", "enabled": True},
     ]
     assert [r["id"] for r in match_alert_rules(record, rules)] == ["r1"]
 
 
 def test_match_any_size():
-    record = {"apt_seq": "11710-2412", "size_label": "other"}
+    record = {"apt_seq": "11000-0001", "size_label": "other"}
     rules = [
-        {"id": "rA", "apt_seq": "11710-2412", "size_label": "any", "enabled": True},
-        {"id": "rB", "apt_seq": "11710-2412", "size_label": "84",  "enabled": True},
+        {"id": "rA", "apt_seq": "11000-0001", "size_label": "any", "enabled": True},
+        {"id": "rB", "apt_seq": "11000-0001", "size_label": "84",  "enabled": True},
     ]
     assert [r["id"] for r in match_alert_rules(record, rules)] == ["rA"]
 
 
 def test_match_disabled_rule_skipped():
-    record = {"apt_seq": "11710-2412", "size_label": "84"}
+    record = {"apt_seq": "11000-0001", "size_label": "84"}
     rules = [
-        {"id": "r1", "apt_seq": "11710-2412", "size_label": "84", "enabled": False},
+        {"id": "r1", "apt_seq": "11000-0001", "size_label": "84", "enabled": False},
     ]
     assert match_alert_rules(record, rules) == []
 
@@ -522,7 +522,7 @@ def test_match_disabled_rule_skipped():
 def test_match_no_apt_seq_match():
     record = {"apt_seq": "11999-0001", "size_label": "84"}
     rules = [
-        {"id": "r1", "apt_seq": "11710-2412", "size_label": "84", "enabled": True},
+        {"id": "r1", "apt_seq": "11000-0001", "size_label": "84", "enabled": True},
     ]
     assert match_alert_rules(record, rules) == []
 ```
@@ -603,8 +603,8 @@ def test_parse_xml_sale(sale_xml):
     assert len(records) == 2
     
     r0 = records[0]
-    assert r0["apt_seq"] == "11710-2412"
-    assert r0["apt_name"] == "헬리오시티"
+    assert r0["apt_seq"] == "11000-0001"
+    assert r0["apt_name"] == "예시단지A"
     assert r0["umd_nm"] == "가락동"
     assert r0["sgg_cd"] == "11710"
     assert r0["umd_cd"] == "11500"
@@ -635,7 +635,7 @@ def test_parse_xml_rent(rent_xml):
     assert len(records) == 3
     
     r0 = records[0]
-    assert r0["apt_seq"] == "11710-2412"
+    assert r0["apt_seq"] == "11000-0001"
     assert r0["deposit_만원"] == 125000
     assert r0["monthly_rent_만원"] == 0
     assert r0["contract_date"] == "2026-03-15"
@@ -672,7 +672,7 @@ def test_parse_xml_service_error():
 
 def test_make_record_id_deterministic():
     rec = {
-        "apt_seq": "11710-2412",
+        "apt_seq": "11000-0001",
         "deal_date": "2026-04-28",
         "floor": 15,
         "price_만원": 198000,
@@ -686,7 +686,7 @@ def test_make_record_id_deterministic():
 
 def test_make_record_id_differs_by_kind():
     rec = {
-        "apt_seq": "11710-2412",
+        "apt_seq": "11000-0001",
         "deal_date": "2026-04-28",
         "contract_date": "2026-04-28",
         "floor": 15,
@@ -1000,8 +1000,8 @@ def mock_supabase():
 
 def test_upsert_records_calls_upsert_with_ignore(mock_supabase):
     records = [
-        {"id": "abc", "apt_seq": "11710-2412", "price_만원": 198000},
-        {"id": "def", "apt_seq": "11710-2412", "price_만원": 175000},
+        {"id": "abc", "apt_seq": "11000-0001", "price_만원": 198000},
+        {"id": "def", "apt_seq": "11000-0001", "price_만원": 175000},
     ]
     mock_supabase.table.return_value.upsert.return_value.execute.return_value.data = records
     
@@ -1016,7 +1016,7 @@ def test_upsert_records_calls_upsert_with_ignore(mock_supabase):
 
 def test_load_alert_rules_filters_enabled(mock_supabase):
     rules = [
-        {"id": "r1", "apt_seq": "11710-2412", "enabled": True},
+        {"id": "r1", "apt_seq": "11000-0001", "enabled": True},
     ]
     mock_supabase.table.return_value.select.return_value.eq.return_value.execute.return_value.data = rules
     
@@ -1207,10 +1207,10 @@ from lib.triggers import (
 
 
 def test_evaluate_price_below_threshold():
-    record = {"id": "abc123", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc123", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 198000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "rule1", "apt_seq": "11710-2412", "size_label": "84",
-            "max_price_만원": 200000, "enabled": True, "display_name": "헬리오시티"}
+    rule = {"id": "rule1", "apt_seq": "11000-0001", "size_label": "84",
+            "max_price_만원": 200000, "enabled": True, "display_name": "예시단지A"}
     
     cands = evaluate_price_threshold([record], [rule])
     
@@ -1224,26 +1224,26 @@ def test_evaluate_price_below_threshold():
 
 
 def test_evaluate_price_above_threshold():
-    record = {"id": "abc", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 220000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "max_price_만원": 200000, "enabled": True, "display_name": "X"}
     
     assert evaluate_price_threshold([record], [rule]) == []
 
 
 def test_evaluate_price_skipped_when_max_price_null():
-    record = {"id": "abc", "apt_seq": "11710-2412", "size_label": "84",
+    record = {"id": "abc", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 100000, "deal_date": "2026-04-28", "floor": 15}
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "max_price_만원": None, "enabled": True, "display_name": "X"}
     
     assert evaluate_price_threshold([record], [rule]) == []
 
 
 def test_evaluate_jeonse_ratio_above_threshold():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
-            "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "헬리오시티"}
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
+            "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "예시단지A"}
     
     cands = evaluate_jeonse_ratio(
         rules=[rule],
@@ -1263,7 +1263,7 @@ def test_evaluate_jeonse_ratio_above_threshold():
 
 
 def test_evaluate_jeonse_ratio_below_threshold():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "X"}
     
     cands = evaluate_jeonse_ratio(
@@ -1277,7 +1277,7 @@ def test_evaluate_jeonse_ratio_below_threshold():
 
 
 def test_evaluate_jeonse_ratio_insufficient_samples():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "X"}
     
     cands = evaluate_jeonse_ratio(
@@ -1291,7 +1291,7 @@ def test_evaluate_jeonse_ratio_insufficient_samples():
 
 
 def test_evaluate_jeonse_ratio_skipped_when_min_null():
-    rule = {"id": "r1", "apt_seq": "11710-2412", "size_label": "84",
+    rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "min_jeonse_ratio": None, "enabled": True, "display_name": "X"}
     
     cands = evaluate_jeonse_ratio(
@@ -1481,13 +1481,13 @@ def test_format_won_zero():
 
 
 def test_format_price_message_includes_all_fields():
-    rule = {"display_name": "헬리오시티", "size_label": "84", "max_price_만원": 200000}
+    rule = {"display_name": "예시단지A", "size_label": "84", "max_price_만원": 200000}
     record = {"price_만원": 198000, "floor": 15, "deal_date": "2026-04-28",
               "dealing_type": "중개거래"}
     msg = format_price_message(rule, record, median_sale=198000, median_jeonse=125000,
                                 sample_count_jeonse=12)
     
-    assert "헬리오시티 84㎡" in msg
+    assert "예시단지A 84㎡" in msg
     assert "19억 8,000" in msg
     assert "15층" in msg
     assert "2026-04-28" in msg
@@ -1497,7 +1497,7 @@ def test_format_price_message_includes_all_fields():
 
 
 def test_format_price_message_when_no_jeonse_data():
-    rule = {"display_name": "옥수하이츠", "size_label": "84"}
+    rule = {"display_name": "예시단지F", "size_label": "84"}
     record = {"price_만원": 195000, "floor": 10, "deal_date": "2026-04-20"}
     msg = format_price_message(rule, record, median_sale=195000, median_jeonse=None,
                                 sample_count_jeonse=0)
@@ -1506,12 +1506,12 @@ def test_format_price_message_when_no_jeonse_data():
 
 
 def test_format_jeonse_message():
-    rule = {"display_name": "헬리오시티", "size_label": "84", "min_jeonse_ratio": 0.65}
+    rule = {"display_name": "예시단지A", "size_label": "84", "min_jeonse_ratio": 0.65}
     msg = format_jeonse_message(rule, ratio=0.656, median_sale=195000, median_jeonse=128000,
                                  sample_count_sale=8, sample_count_jeonse=14, month_key="2026-05")
     
     assert "전세가율 임계값 도달" in msg
-    assert "헬리오시티 84㎡" in msg
+    assert "예시단지A 84㎡" in msg
     assert "65" in msg
     assert "19억 5,000" in msg
     assert "12억 8,000" in msg
@@ -2617,11 +2617,11 @@ python3.11 scripts/backfill.py --months 12
 
 ```sql
 -- 단지 검색
-SELECT * FROM v_complexes WHERE apt_name LIKE '%헬리오시티%' AND sgg_cd = '11710';
+SELECT * FROM v_complexes WHERE apt_name LIKE '%예시단지A%' AND sgg_cd = '11710';
 
 -- alert_rules INSERT
 INSERT INTO alert_rules (apt_seq, display_name, size_label, max_price_만원, min_jeonse_ratio)
-VALUES ('11710-2412', '헬리오시티', '84', 200000, 0.65);
+VALUES ('11000-0001', '예시단지A', '84', 200000, 0.65);
 
 -- 검증
 SELECT * FROM v_alert_rules_check;
@@ -2823,8 +2823,8 @@ SELECT sgg_cd, count(*) FROM sale_records GROUP BY sgg_cd ORDER BY 1;
 
 사용자가 자기 관심 매물의 apt_seq를 검색:
 ```sql
-SELECT * FROM v_complexes WHERE apt_name LIKE '%헬리오시티%' AND sgg_cd = '11710';
-SELECT * FROM v_complexes WHERE apt_name LIKE '%서울숲푸르지오%' AND sgg_cd = '11200';
+SELECT * FROM v_complexes WHERE apt_name LIKE '%예시단지A%' AND sgg_cd = '11710';
+SELECT * FROM v_complexes WHERE apt_name LIKE '%예시단지B%' AND sgg_cd = '11200';
 -- 등
 ```
 
@@ -2834,8 +2834,8 @@ SELECT * FROM v_complexes WHERE apt_name LIKE '%서울숲푸르지오%' AND sgg_
 ```sql
 INSERT INTO alert_rules (apt_seq, display_name, size_label, max_price_만원, min_jeonse_ratio, enabled)
 VALUES
-  ('11710-2412', '헬리오시티', '84', 200000, 0.65, true),
-  ('11710-2412', '헬리오시티', '59', 150000, 0.65, true);
+  ('11000-0001', '예시단지A', '84', 200000, 0.65, true),
+  ('11000-0001', '예시단지A', '59', 150000, 0.65, true);
 -- 등
 ```
 
