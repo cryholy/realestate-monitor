@@ -126,7 +126,7 @@ laptop-independent 운영이 필요해지면 GitHub Actions + 클라우드 DB로
 9. **`.github/workflows/monitor.yml` 작성** — cron `0 0,9 * * *` UTC
 10. **백필** — 직전 6개월 데이터 1회성 push
 11. **Metabase Cloud 가입 → Supabase 연결 → 대시보드 구성**
-12. **launchd 비활성화** — `launchctl unload ~/Library/LaunchAgents/com.joel.realestate-monitor.plist`
+12. **launchd 비활성화** — `launchctl unload ~/Library/LaunchAgents/com.user.realestate-monitor.plist`
 
 ## 트리거 시점
 

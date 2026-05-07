@@ -2056,7 +2056,7 @@ python monitor.py --notify-on-error
 이름     : realestate-monitor
 cron     : 0 9,18 * * *
 타임존   : Asia/Seoul
-프롬프트 : cd /Users/joel/Claude/labs/realestate_monitor && python monitor.py --notify-on-error
+프롬프트 : cd ~/labs/realestate_monitor && python monitor.py --notify-on-error
 ```
 
 ## 단지·임계값 변경
@@ -2172,7 +2172,7 @@ Expected: 모든 테스트 PASS.
 Claude 대화창에서:
 
 ```
-/schedule create realestate-monitor "cd /Users/joel/Claude/labs/realestate_monitor && python monitor.py --notify-on-error" --cron "0 9,18 * * *" --tz Asia/Seoul
+/schedule create realestate-monitor "cd ~/labs/realestate_monitor && python monitor.py --notify-on-error" --cron "0 9,18 * * *" --tz Asia/Seoul
 ```
 
 (정확한 인자명은 schedule 스킬 도움말로 확인)

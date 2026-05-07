@@ -1,9 +1,9 @@
 # 부동산 실거래·전월세 클라우드 모니터링 시스템 설계
 
 작성일: 2026-05-04
-대상: `/Users/joel/Claude/labs/realestate_monitor/` (전면 재작성)
+대상: `~/labs/realestate_monitor/` (전면 재작성)
 
-목적이 단순 알림에서 **9개 구 데이터 누적 + 분석 대시보드 + 갭 알림**으로 확장되었다. 기존 로컬 코드(`monitor.py`, `state.json`, `config.json`, `com.joel.realestate-monitor.plist`)는 **삭제하고 신규 작성**한다. 기존 docs (`2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md`)는 역사 기록으로 유지.
+목적이 단순 알림에서 **9개 구 데이터 누적 + 분석 대시보드 + 갭 알림**으로 확장되었다. 기존 로컬 코드(`monitor.py`, `state.json`, `config.json`, `com.user.realestate-monitor.plist`)는 **삭제하고 신규 작성**한다. 기존 docs (`2026-05-04-design.md`, `2026-05-04-implementation-plan.md`, `2026-05-04-future-cloud-migration.md`)는 역사 기록으로 유지.
 
 ---
 
@@ -74,7 +74,7 @@
 
 **삭제 대상** (구현 첫 단계에서 제거):
 - `monitor.py`, `state.json`, `config.json`
-- `com.joel.realestate-monitor.plist` (launchd 해제 후)
+- `com.user.realestate-monitor.plist` (launchd 해제 후)
 - `tests/` 하위 기존 파일 (fixture 포함, 신규 모듈에 맞게 재작성)
 - `.env.example`, `requirements.txt`도 신규 모듈에 맞춰 재작성
 

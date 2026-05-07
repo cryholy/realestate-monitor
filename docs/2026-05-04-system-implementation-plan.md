@@ -64,7 +64,7 @@ labs/realestate_monitor/
 - Delete: `labs/realestate_monitor/.gitignore`
 - Delete: `labs/realestate_monitor/requirements.txt`
 - Delete: `labs/realestate_monitor/README.md`
-- Delete: `labs/realestate_monitor/com.joel.realestate-monitor.plist`
+- Delete: `labs/realestate_monitor/com.user.realestate-monitor.plist`
 - Delete: `labs/realestate_monitor/tests/__init__.py`
 - Delete: `labs/realestate_monitor/tests/conftest.py`
 - Delete: `labs/realestate_monitor/tests/test_*.py` (test_api.py, test_config.py, test_filter.py, test_gap.py, test_matcher.py, test_notifier.py, test_state.py)
@@ -75,8 +75,8 @@ labs/realestate_monitor/
 - [ ] **Step 1: launchd unload**
 
 ```bash
-launchctl unload ~/Library/LaunchAgents/com.joel.realestate-monitor.plist 2>/dev/null
-rm -f ~/Library/LaunchAgents/com.joel.realestate-monitor.plist
+launchctl unload ~/Library/LaunchAgents/com.user.realestate-monitor.plist 2>/dev/null
+rm -f ~/Library/LaunchAgents/com.user.realestate-monitor.plist
 launchctl list | grep realestate
 ```
 
@@ -85,8 +85,8 @@ Expected: `realestate` 관련 출력 없음.
 - [ ] **Step 2: 기존 파일 삭제**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
-rm -f monitor.py state.json config.json .env .env.example .gitignore requirements.txt README.md com.joel.realestate-monitor.plist
+cd ~/labs/realestate_monitor
+rm -f monitor.py state.json config.json .env .env.example .gitignore requirements.txt README.md com.user.realestate-monitor.plist
 rm -rf tests/__pycache__ tests/__init__.py tests/conftest.py
 rm -f tests/test_api.py tests/test_config.py tests/test_filter.py tests/test_gap.py tests/test_matcher.py tests/test_notifier.py tests/test_state.py
 rm -f tests/fixtures/sale_response.xml tests/fixtures/rent_response.xml tests/fixtures/empty_response.xml
@@ -99,7 +99,7 @@ Expected: `docs/` 와 빈 `tests/fixtures/` 만 남음.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add -A labs/realestate_monitor/
 git commit -m "chore(realestate_monitor): 기존 로컬 시스템 코드·설정 삭제 (신규 클라우드 시스템 재작성)"
 ```
@@ -189,7 +189,7 @@ def error_xml():
 - [ ] **Step 7: pip install**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 python3.11 -m pip install --user -r requirements.txt
 ```
 
@@ -198,7 +198,7 @@ Expected: 4개 패키지 설치 (requests, python-dotenv, supabase, pytest).
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/.gitignore labs/realestate_monitor/.env.example labs/realestate_monitor/requirements.txt labs/realestate_monitor/lib/__init__.py labs/realestate_monitor/tests/__init__.py labs/realestate_monitor/tests/conftest.py
 git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + tests/ + 의존성)"
 ```
@@ -371,7 +371,7 @@ git commit -m "feat(realestate_monitor): 신규 시스템 스켈레톤 (lib/ + t
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/tests/fixtures/
 git commit -m "test(realestate_monitor): API fixture (실제 스키마, 분석 필드 포함)"
 ```
@@ -425,7 +425,7 @@ def test_size_label_other():
 - [ ] **Step 2: Run → fail**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 python3.11 -m pytest tests/test_matcher.py -v
 ```
 
@@ -471,7 +471,7 @@ Expected: 4 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/matcher.py labs/realestate_monitor/tests/test_matcher.py
 git commit -m "feat(realestate_monitor): compute_size_label (59/mid/84/other 분류)"
 ```
@@ -571,7 +571,7 @@ Expected: 8 passed (4 size_label + 4 match_alert_rules).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/matcher.py labs/realestate_monitor/tests/test_matcher.py
 git commit -m "feat(realestate_monitor): match_alert_rules (apt_seq + size_label, any 룰 지원)"
 ```
@@ -964,7 +964,7 @@ Expected: 17 passed (8 matcher + 9 api).
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/api.py labs/realestate_monitor/tests/test_api.py
 git commit -m "feat(realestate_monitor): 국토부 API 클라이언트 + XML 파싱 (전체 분석 필드)"
 ```
@@ -1176,7 +1176,7 @@ Expected: 5 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/db.py labs/realestate_monitor/tests/test_db.py
 git commit -m "feat(realestate_monitor): Supabase 클라이언트 래퍼 (upsert/load_rules/dedup/mark_sent + RPC)"
 ```
@@ -1439,7 +1439,7 @@ Expected: 7 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/triggers.py labs/realestate_monitor/tests/test_triggers.py
 git commit -m "feat(realestate_monitor): edge 트리거 (price + jeonse_ratio, 표본 부족 skip)"
 ```
@@ -1654,7 +1654,7 @@ Expected: 7 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/lib/notifier.py labs/realestate_monitor/tests/test_notifier.py
 git commit -m "feat(realestate_monitor): 텔레그램 알림 + 메시지 포맷 (price + jeonse 두 종류)"
 ```
@@ -1871,7 +1871,7 @@ $$;
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/sql/
 git commit -m "feat(realestate_monitor): SQL 마이그레이션 (4 테이블 + 2 view + 2 MV + 2 RPC)"
 ```
@@ -2203,7 +2203,7 @@ if __name__ == "__main__":
 - [ ] **Step 2: import sanity 체크**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 python3.11 -c "import collector; print('OK')"
 ```
 
@@ -2228,7 +2228,7 @@ Expected: 모든 단위 테스트 PASS (Tasks 3-8 누적).
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/collector.py
 git commit -m "feat(realestate_monitor): collector.py 메인 오케스트레이션 (수집·트리거·알림·MV refresh)"
 ```
@@ -2330,7 +2330,7 @@ if __name__ == "__main__":
 - [ ] **Step 3: import 체크**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 python3.11 scripts/backfill.py --help
 ```
 
@@ -2339,7 +2339,7 @@ Expected: `--months`, `--dry-run` 표시.
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/scripts/
 git commit -m "feat(realestate_monitor): backfill.py 1년 백필 스크립트 (배치 UPSERT)"
 ```
@@ -2476,7 +2476,7 @@ Expected: `--dry-run` 옵션 표시.
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/scripts/seed_alerts_sent.py
 git commit -m "feat(realestate_monitor): seed_alerts_sent.py — 백필 거래에 dedup 키 미리 채워 폭격 방지"
 ```
@@ -2544,7 +2544,7 @@ jobs:
 - [ ] **Step 2: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/.github/
 git commit -m "feat(realestate_monitor): GitHub Actions cron workflow (09/18시 KST + workflow_dispatch)"
 ```
@@ -2695,7 +2695,7 @@ python3.11 -m pytest tests/ -v
 - [ ] **Step 2: Commit**
 
 ```bash
-cd /Users/joel/Claude
+cd ~/Claude
 git add labs/realestate_monitor/README.md
 git commit -m "docs(realestate_monitor): README — 셋업·운영·디렉토리 가이드"
 ```
@@ -2729,7 +2729,7 @@ gh repo create realestate-monitor --private --description "Seoul 8-district real
 - [ ] **Step 3: 로컬 sub-directory를 별도 repo로 push**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 
 # repo init (이미 부모 워크스페이스가 git이라 별도 작업 필요)
 git init
@@ -2798,7 +2798,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJhbGc...
 - [ ] **Step 2: 백필 실행**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor
+cd ~/labs/realestate_monitor
 python3.11 scripts/backfill.py --months 12
 ```
 
@@ -2880,7 +2880,7 @@ price + jeonse 두 종류로 누적되어야 함.
 - [ ] **Step 1: gh CLI로 5개 secrets 등록**
 
 ```bash
-cd /Users/joel/Claude/labs/realestate_monitor   # repo 디렉토리
+cd ~/labs/realestate_monitor   # repo 디렉토리
 gh secret set MOLIT_SERVICE_KEY                  # 값 직접 입력
 gh secret set TELEGRAM_BOT_TOKEN
 gh secret set TELEGRAM_CHAT_ID
