@@ -29,6 +29,7 @@ from lib.db import (
 from lib.notifier import (
     format_price_message,
     format_jeonse_message,
+    format_summary_message,
     send_telegram,
 )
 from lib.triggers import (
@@ -273,10 +274,13 @@ def main() -> int:
         return 2
 
     client = get_client(supabase_url, supabase_key)
+    run_started_at = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
     today_iso = datetime.now(KST).date().isoformat()
 
     new_sales: list[dict] = []
     new_rents: list[dict] = []
+    sales: list[dict] = []
+    rents: list[dict] = []
 
     if not args.skip_fetch:
         logger.info("데이터 수집 시작 (직전 %d개월, %d개 구)", args.backfill_months, len(DISTRICT_LAWD_CDS))
@@ -297,6 +301,26 @@ def main() -> int:
     jeonse_sent = process_jeonse_alerts(client, bot_token, chat_id, rules, today_iso, args.dry_run)
 
     logger.info("발송 완료: price %d건, jeonse %d건", price_sent, jeonse_sent)
+
+    summary = format_summary_message(
+        run_started_at=run_started_at,
+        months=args.backfill_months,
+        districts=len(DISTRICT_LAWD_CDS),
+        sales_total=len(sales),
+        sales_new=len(new_sales),
+        rents_total=len(rents),
+        rents_new=len(new_rents),
+        rules_active=len(rules),
+        price_alerts_sent=price_sent,
+        jeonse_alerts_sent=jeonse_sent,
+    )
+    if args.dry_run:
+        logger.info("[DRY-RUN] would send summary: %s", summary.replace("\n", " | "))
+    else:
+        try:
+            send_telegram(token=bot_token, chat_id=chat_id, text=summary)
+        except Exception as e:
+            logger.error("요약 알림 발송 실패: %s", e)
 
     refresh_materialized_views(client)
 

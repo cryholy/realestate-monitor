@@ -75,6 +75,59 @@ def format_jeonse_message(
     )
 
 
+def format_summary_message(
+    *,
+    run_started_at: str,
+    months: int,
+    districts: int,
+    sales_total: int,
+    sales_new: int,
+    rents_total: int,
+    rents_new: int,
+    rules_active: int,
+    price_alerts_sent: int,
+    jeonse_alerts_sent: int,
+) -> str:
+    """배치 실행 결과 요약 메시지.
+
+    매 cron 실행 후 1회 발송 — 알림이 0건이어도 발송돼서
+    "배치 자체가 살아 있다"는 신호 역할을 한다.
+
+    Args:
+        run_started_at: 실행 시작 시각 (사람 친화적 KST 표기 권장, 예: "2026-05-14 14:30 KST")
+        months: backfill 대상 개월 수
+        districts: 수집 대상 구 개수
+        sales_total: 이번 실행 매매 API 응답 총건수
+        sales_new: 이번 실행 매매 신규 (DB에 처음 들어온 것)
+        rents_total: 이번 실행 전월세 API 응답 총건수
+        rents_new: 이번 실행 전월세 신규
+        rules_active: 활성 알림 룰 수
+        price_alerts_sent: 매매가 임계값 알림 발송 건수
+        jeonse_alerts_sent: 전세가율 알림 발송 건수
+
+    Returns:
+        텔레그램에 그대로 보낼 수 있는 단일 문자열.
+    """
+    total_alerts = price_alerts_sent + jeonse_alerts_sent
+    lines = [
+        "📋 일일 모니터링 보고",
+        f"실행 {run_started_at}",
+        "",
+        f"🗺  대상  {districts}개 구 × {months}개월",
+        "",
+        f"🏠 매매  {sales_total:,}건 (신규 {sales_new:,}건)",
+        f"🏡 전월세  {rents_total:,}건 (신규 {rents_new:,}건)",
+        "",
+        f"🔔 알림 룰 {rules_active}개 활성",
+        f"   • 매매가 임계값  {price_alerts_sent}건 발송",
+        f"   • 전세가율 임계값  {jeonse_alerts_sent}건 발송",
+    ]
+    if total_alerts == 0:
+        lines.append("")
+        lines.append("✅ 특이사항 없음")
+    return "\n".join(lines)
+
+
 def send_telegram(*, token: str, chat_id: str, text: str) -> None:
     """텔레그램 봇 메시지 전송. 실패 시 RuntimeError."""
     url = TELEGRAM_API.format(token=token)

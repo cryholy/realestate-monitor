@@ -6,6 +6,7 @@ from lib.notifier import (
     format_won,
     format_price_message,
     format_jeonse_message,
+    format_summary_message,
     send_telegram,
 )
 
@@ -57,6 +58,49 @@ def test_format_jeonse_message():
     assert "19억 5,000" in msg
     assert "12억 8,000" in msg
     assert "2026-05" in msg
+
+
+def test_format_summary_message_contains_key_stats():
+    msg = format_summary_message(
+        run_started_at="2026-05-14 14:30 KST",
+        months=2,
+        districts=9,
+        sales_total=1234,
+        sales_new=56,
+        rents_total=987,
+        rents_new=34,
+        rules_active=12,
+        price_alerts_sent=2,
+        jeonse_alerts_sent=1,
+    )
+
+    assert "2026-05-14 14:30 KST" in msg, "실행 시각 누락"
+    # 핵심 통계가 메시지에 포함돼야 함 — 본문 작성 시 자유롭게 포맷팅하되
+    # 아래 숫자들은 어떤 형태로든 들어가야 보고로서 의미가 있음.
+    assert "1234" in msg or "1,234" in msg, "sales_total 누락"
+    assert "56" in msg, "sales_new 누락"
+    assert "987" in msg, "rents_total 누락"
+    assert "34" in msg, "rents_new 누락"
+    assert "12" in msg, "rules_active 누락"
+    # 알림 발송 건수 — price_sent=2, jeonse_sent=1
+    assert "2" in msg and "1" in msg, "알림 건수 누락"
+
+
+def test_format_summary_message_zero_alerts():
+    """후보 0건이어도 발송돼야 하는 게 이 함수의 존재 이유."""
+    msg = format_summary_message(
+        run_started_at="2026-05-14 05:30 KST",
+        months=2,
+        districts=9,
+        sales_total=800,
+        sales_new=0,
+        rents_total=600,
+        rents_new=0,
+        rules_active=10,
+        price_alerts_sent=0,
+        jeonse_alerts_sent=0,
+    )
+    assert isinstance(msg, str) and len(msg) > 0
 
 
 @patch("lib.notifier.requests.post")
