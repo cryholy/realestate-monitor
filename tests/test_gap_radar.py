@@ -101,3 +101,38 @@ def test_render_csv_contains_flat_rows():
     assert "district_name,apt_name,size_label" in csv_text
     assert "강남구,강남대표,84" in csv_text
     assert "성동구,성동대표,59" in csv_text
+
+
+def test_radar_row_from_db_handles_supabase_strings():
+    row = RadarRow.from_db({
+        "district_rank": 2,
+        "representative_score": "88.5",
+        "apt_seq": "11710-0001",
+        "apt_name": "송파대표",
+        "sgg_cd": "11710",
+        "district_name": "송파구",
+        "lifestyle_area": "강남권",
+        "size_label": "84",
+        "sale_count_12m": "10",
+        "jeonse_count_12m": "11",
+        "sale_median_12m": "190000",
+        "jeonse_median_12m": "120000",
+        "sale_count_90d": "5",
+        "sale_median_90d": "188000",
+        "jeonse_count_90d": "6",
+        "jeonse_median_90d": "121000",
+        "gap_90d": "67000",
+        "jeonse_ratio_90d": "0.6436",
+        "sale_count_prev_90d": None,
+        "sale_median_prev_90d": None,
+        "jeonse_count_prev_90d": None,
+        "jeonse_median_prev_90d": None,
+        "gap_prev_90d": None,
+        "jeonse_ratio_prev_90d": None,
+    })
+
+    assert row.district_rank == 2
+    assert row.representative_score == 88.5
+    assert row.sale_median_90d == 188000
+    assert row.jeonse_ratio_90d == 0.6436
+    assert row.gap_delta is None
