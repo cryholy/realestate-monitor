@@ -119,6 +119,56 @@ gh workflow run monitor.yml
 python3.11 -m pytest tests/ -v
 ```
 
+## 서울 한강권 대표단지 갭 레이더
+
+무료 공개 Notion 리포트용 Markdown/CSV를 생성한다.
+
+### 1. SQL view 적용
+
+Supabase Studio SQL Editor에서 아래 파일을 실행한다.
+
+```text
+sql/007_gap_radar_views.sql
+```
+
+이 SQL은 다음 view를 만든다.
+
+- `v_gap_radar_sale_12m`
+- `v_gap_radar_rent_12m`
+- `v_gap_radar_candidate_scores`
+- `v_gap_radar_representative_items`
+- `v_gap_radar_weekly_rows`
+
+### 2. 리포트 생성
+
+```bash
+cd realestate_monitor
+python3.11 scripts/generate_gap_radar_report.py --date 2026-06-01
+```
+
+출력:
+
+```text
+reports/gap-radar/2026-06-01.md
+reports/gap-radar/2026-06-01.csv
+```
+
+### 3. Notion 발행
+
+발행 절차는 `docs/gap-radar-notion-publishing.md`를 따른다.
+
+초기 운영 원칙:
+
+- 광고 없음
+- 결제 없음
+- 무료 공개 Notion Site
+- 검색 인덱싱 ON
+- 매주 리포트 아카이브 누적
+- 리포트 생성: 일요일 22:30 KST
+- 검수/초안 작성: 일요일 22:30~23:30 KST
+- 공개: 월요일 07:30 KST
+- 공개 방식: 항상 공개된 메인 페이지의 `최신 주간 리포트` 영역 갱신
+
 ## 디렉토리
 
 - `collector.py` — 메인 엔트리
