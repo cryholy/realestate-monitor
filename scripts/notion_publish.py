@@ -152,10 +152,22 @@ def publish_draft_page(
     staging_parent_id: str,
     report_date: str,
     markdown_body: str,
+    csv_public_url: str | None = None,
 ) -> PublishResult:
-    """비공개 부모 페이지 아래에 초안 페이지를 생성하고 결과 반환."""
+    """비공개 부모 페이지 아래에 초안 페이지를 생성하고 결과 반환.
+
+    `csv_public_url`이 주어지면 본문 끝에 "전체 데이터 다운로드: [YYYY-MM-DD.csv](url)"
+    paragraph를 자동 추가한다. 사용자가 검수·공개 단계에서 본문 안에 그대로 노출되는
+    형태이며, [[feedback-publish-no-version-marks]] 정책에 따라 파일명에는 v2 같은
+    버전 표식을 붙이지 않는다.
+    """
     title = f"{report_date} 서울 한강권 대표단지 갭 레이더 (초안)"
-    blocks = markdown_to_blocks(markdown_body)
+    body = markdown_body
+    if csv_public_url:
+        body = body.rstrip() + (
+            f"\n\n전체 데이터 다운로드: [{report_date}.csv]({csv_public_url})\n"
+        )
+    blocks = markdown_to_blocks(body)
 
     head, tail = blocks[:100], blocks[100:]
 
@@ -187,6 +199,11 @@ def main() -> int:
         required=True,
         help="발행할 Markdown 본문 파일 경로",
     )
+    parser.add_argument(
+        "--csv-url",
+        default="",
+        help="(선택) CSV 부록 공개 URL. 주어지면 본문 끝에 다운로드 링크 자동 추가",
+    )
     args = parser.parse_args()
 
     env_path = ROOT / ".env"
@@ -216,6 +233,7 @@ def main() -> int:
         staging_parent_id=staging_parent_id,
         report_date=args.date,
         markdown_body=markdown_body,
+        csv_public_url=args.csv_url or None,
     )
     print(f"Page ID: {result.page_id}")
     print(f"URL: {result.url}")

@@ -65,9 +65,15 @@ def write_report_v1(rows: list[RadarRow], *, report_date: str, output_dir: Path)
 
 
 def write_report_v2(rows: list[RadarRowV2], *, report_date: str, output_dir: Path) -> tuple[Path, Path]:
-    output_dir.mkdir(parents=True, exist_ok=True)
+    """v2 산출물.
+
+    - Markdown은 `output_dir/{date}-v2.md` (내부 식별용, v2 suffix 유지)
+    - CSV는 `output_dir/r/{date}.csv` — Supabase Storage 객체 키 `r/{date}.csv` 와 1:1 매핑
+    """
     markdown_path = output_dir / f"{report_date}-v2.md"
-    csv_path = output_dir / f"{report_date}-v2.csv"
+    markdown_path.parent.mkdir(parents=True, exist_ok=True)
+    csv_path = output_dir / "r" / f"{report_date}.csv"
+    csv_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.write_text(render_markdown_report_v2(rows, report_date=report_date), encoding="utf-8")
     csv_path.write_text(render_csv_v2(rows), encoding="utf-8")
     return markdown_path, csv_path

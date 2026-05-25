@@ -60,13 +60,31 @@ jobs:
             echo "COUNTS line missing — generation may have failed"
             exit 1
           fi
-          # Multi-line output 안전 처리
           {
             echo "counts_line<<EOF"
             echo "$COUNTS_LINE"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           echo "markdown_path=reports/gap-radar/${{ steps.date.outputs.report_date }}-v2.md" >> "$GITHUB_OUTPUT"
+          echo "csv_path=reports/gap-radar/r/${{ steps.date.outputs.report_date }}.csv" >> "$GITHUB_OUTPUT"
+
+      - name: Upload CSV to Supabase Storage
+        id: upload
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          OUT=$(python scripts/upload_csv.py \
+            --date "${{ steps.date.outputs.report_date }}" \
+            --csv "${{ steps.gen.outputs.csv_path }}")
+          echo "$OUT"
+          CSV_URL=$(echo "$OUT" | awk -F': ' '/^URL: /{print $2}')
+          if [ -z "$CSV_URL" ]; then
+            echo "CSV URL line missing — upload may have failed"
+            exit 1
+          fi
+          echo "csv_url=$CSV_URL" >> "$GITHUB_OUTPUT"
 
       - name: Publish draft to Notion staging
         id: publish
@@ -77,7 +95,8 @@ jobs:
           set -o pipefail
           OUT=$(python scripts/notion_publish.py \
             --date "${{ steps.date.outputs.report_date }}" \
-            --markdown "${{ steps.gen.outputs.markdown_path }}")
+            --markdown "${{ steps.gen.outputs.markdown_path }}" \
+            --csv-url "${{ steps.upload.outputs.csv_url }}")
           echo "$OUT"
           PAGE_URL=$(echo "$OUT" | awk -F': ' '/^URL: /{print $2}')
           if [ -z "$PAGE_URL" ]; then
