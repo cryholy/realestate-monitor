@@ -1,16 +1,17 @@
 -- 서울 한강권 대표단지 갭 레이더
 -- 대표 단지+평형 선정과 주간 리포트 지표 계산.
 
-CREATE OR REPLACE VIEW v_gap_radar_sale_12m AS
+CREATE OR REPLACE VIEW v_gap_radar_sale_12m
+WITH (security_invoker = true) AS
 SELECT
   s.apt_seq,
   s.apt_name,
   s.sgg_cd,
   d.name AS district_name,
   CASE
-    WHEN d.name IN ('강남구', '서초구', '송파구') THEN '강남권'
-    WHEN d.name IN ('마포구', '용산구', '성동구', '광진구') THEN '마용성/동부권'
-    WHEN d.name IN ('동작구', '강동구') THEN '상대가치권'
+    WHEN d.name IN ('강남', '강남구', '서초', '서초구', '송파', '송파구') THEN '강남권'
+    WHEN d.name IN ('마포', '마포구', '용산', '용산구', '성동', '성동구', '광진', '광진구') THEN '마용성/동부권'
+    WHEN d.name IN ('동작', '동작구', '강동', '강동구') THEN '상대가치권'
     ELSE '기타'
   END AS lifestyle_area,
   s.size_label,
@@ -26,7 +27,8 @@ WHERE s.deal_date >= CURRENT_DATE - INTERVAL '12 months'
   AND s.apt_seq <> ''
 GROUP BY s.apt_seq, s.apt_name, s.sgg_cd, d.name, s.size_label;
 
-CREATE OR REPLACE VIEW v_gap_radar_rent_12m AS
+CREATE OR REPLACE VIEW v_gap_radar_rent_12m
+WITH (security_invoker = true) AS
 SELECT
   r.apt_seq,
   r.size_label,
@@ -41,7 +43,8 @@ WHERE r.contract_date >= CURRENT_DATE - INTERVAL '12 months'
   AND r.apt_seq <> ''
 GROUP BY r.apt_seq, r.size_label;
 
-CREATE OR REPLACE VIEW v_gap_radar_candidate_scores AS
+CREATE OR REPLACE VIEW v_gap_radar_candidate_scores
+WITH (security_invoker = true) AS
 WITH joined AS (
   SELECT
     s.apt_seq,
@@ -82,7 +85,8 @@ SELECT
   ROUND((sale_liquidity_pct * 50 + price_level_pct * 30 + jeonse_liquidity_pct * 20)::numeric, 2) AS representative_score
 FROM scored;
 
-CREATE OR REPLACE VIEW v_gap_radar_representative_items AS
+CREATE OR REPLACE VIEW v_gap_radar_representative_items
+WITH (security_invoker = true) AS
 SELECT *
 FROM (
   SELECT
@@ -95,7 +99,8 @@ FROM (
 ) ranked
 WHERE district_rank <= 10;
 
-CREATE OR REPLACE VIEW v_gap_radar_weekly_rows AS
+CREATE OR REPLACE VIEW v_gap_radar_weekly_rows
+WITH (security_invoker = true) AS
 WITH sale_90 AS (
   SELECT
     s.apt_seq,
