@@ -1,109 +1,119 @@
-# 서울 한강권 대표단지 갭 레이더 Notion 발행 체크리스트
+# 서울 한강권 대표단지 갭 레이더 Notion 발행 가이드 (v2)
 
-## 목적
+## 흐름 요약
 
-이 문서는 `scripts/generate_gap_radar_report.py`가 생성한 Markdown/CSV 산출물을 Notion Site에 수동 발행하는 절차를 정의한다.
+```
+[자동 — 일요일 22:30 KST]
+GitHub Actions cron (.github/workflows/gap_radar_weekly.yml)
+  ├ python scripts/generate_gap_radar_report.py --version v2 --date <다음 월요일>
+  ├ python scripts/notion_publish.py  →  📥 발행 대기실 / 📊 ... (초안)
+  └ python scripts/notify_gap_radar.py --mode success  →  텔레그램 알림
 
-초기 운영 원칙:
+[수동 — 월요일 아침]
+사용자
+  ├ 텔레그램 알림에서 URL 확인 → 비공개 페이지 열기
+  ├ 본문 검수
+  ├ 페이지 제목에서 "(초안)" 제거
+  ├ notion-move-pages 또는 UI 드래그로 "📡 서울 한강권 대표단지 갭 레이더" 하위로 이동
+  └ 부모 페이지의 "이번 주 핵심 숫자" + "최신 주간 리포트" 영역 갱신
+```
 
-- 광고 없음
-- 결제 없음
-- 무료 공개 Notion Site
-- 검색 인덱싱 ON
+## 운영 원칙
+
+- 광고/결제 없음
+- 무료 공개 Notion Site (검색 인덱싱 ON)
 - 매주 리포트 아카이브 누적
-- 리포트 생성: 일요일 22:30 KST
-- 검수/초안 작성: 일요일 22:30~23:30 KST
-- 공개: 월요일 07:30 KST
-- 공개 방식: 항상 공개된 메인 페이지의 `최신 주간 리포트` 영역 갱신
+- 리포트 생성·발행: 일요일 22:30 KST (자동)
+- 검수·공개: 월요일 아침 (사용자 수동)
+- 공개 방식: 메인 페이지의 "최신 주간 리포트" 링크 영역 갱신
 
-## Notion 페이지 구조
+## 필요 환경 변수 (GitHub Secrets)
+
+| 이름 | 용도 |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | view SELECT 권한 |
+| `NOTION_API_KEY` | Notion Integration token (Internal type 권장) |
+| `NOTION_STAGING_PARENT_ID` | `📥 발행 대기실` 페이지 ID |
+| `TELEGRAM_BOT_TOKEN` | 기존 봇 재사용 |
+| `TELEGRAM_CHAT_ID` | 알림 받을 chat_id |
+
+`SUPABASE_*`, `TELEGRAM_*`는 `monitor.yml`에서도 사용 중인 기존 secrets.
+
+## 메인 페이지 구조
 
 ```text
-서울 한강권 대표단지 갭 레이더
-├─ 소개 / 방법론
-├─ 최신 주간 리포트
-├─ 지난 리포트 아카이브
-│  ├─ 2026-06-01 리포트
-│  ├─ 2026-06-08 리포트
-│  └─ 2026-06-15 리포트
-└─ 업데이트 알림 안내
+📡 서울 한강권 대표단지 갭 레이더 (공개)
+├─ 📘 소개 / 방법론
+├─ 📊 YYYY-MM-DD 주간 리포트 (← 최신)
+├─ 📊 YYYY-MM-DD 주간 리포트 (← 이전들 누적)
+└─ (향후) 업데이트 알림 안내
+
+📥 발행 대기실 (비공개, cron 산출물 대기)
+└─ 📊 YYYY-MM-DD 서울 한강권 대표단지 갭 레이더 (초안)
 ```
 
 ## 메인 페이지 필수 섹션
 
 1. 상품 소개
 2. 대상 지역: 강남, 서초, 송파, 성동, 광진, 마포, 용산, 동작, 강동
-3. 대표단지 선정 기준: 거래 유동성 50%, 가격 레벨 30%, 전세 유동성 20%
+3. 대표단지 선정 기준: 거래 유동성 50%, 가격 레벨 30%, 신규 전세 유동성 20%
 4. 최신 주간 리포트 링크
-5. 지난 리포트 아카이브
-6. 데이터 출처와 주의사항
-7. 업데이트 알림 신청 링크
+5. 이번 주 핵심 숫자 (5개)
+6. 지난 리포트 아카이브
+7. 데이터 출처와 주의사항
 
-## 주간 발행 절차
+## 수동 실행 (긴급/검증용)
 
-1. 일요일 22:30 KST에 Supabase 최신 실거래 데이터 적재 상태를 확인한다.
-2. Supabase SQL Editor에서 `sql/007_gap_radar_views.sql`이 적용되어 있는지 확인한다.
-3. 로컬에서 리포트를 생성한다.
+cron 외에 수동 실행이 필요하면:
+
+```bash
+gh workflow run gap_radar_weekly.yml -f report_date=2026-06-01
+```
+
+또는 로컬에서:
 
 ```bash
 cd realestate_monitor
-python3.11 scripts/generate_gap_radar_report.py --date 2026-06-01
+python3.11 scripts/generate_gap_radar_report.py --version v2 --date 2026-06-01
+python3.11 scripts/notion_publish.py \
+  --date 2026-06-01 \
+  --markdown reports/gap-radar/2026-06-01-v2.md
+# 알림 발송은 선택적
+python3.11 scripts/notify_gap_radar.py \
+  --mode success \
+  --date 2026-06-01 \
+  --page-url "<위에서 받은 URL>" \
+  --total-rows NN --high-reliability NN --ratio-up NN --gap-down NN --use-rate-up NN
 ```
 
-4. 생성된 Markdown 파일을 연다.
+## v1 (legacy)
+
+v1 view (`v_gap_radar_weekly_rows`)와 v1 렌더러(`render_markdown_report`)는 보존되어 있다. 비교 또는 롤백이 필요하면:
 
 ```bash
-open reports/gap-radar/2026-06-01.md
+python3.11 scripts/generate_gap_radar_report.py --version v1 --date 2026-06-01
 ```
 
-5. `docs/gap-radar-notion-report-template.md`의 주간 리포트 템플릿을 기준으로 공개용 요약을 작성한다.
-6. Notion에 새 하위 페이지를 만들고 비공개 또는 숨겨진 초안 상태로 둔다.
-7. 제목은 `2026-06-01 서울 한강권 대표단지 갭 레이더` 형식으로 쓴다.
-8. 공개용 요약, Top 10 표, 생활권별 관찰 포인트를 먼저 붙이고 전체 구별 표는 아래에 붙인다.
-9. CSV 파일은 필요하면 파일 첨부 또는 별도 database import로 올린다.
-10. 일요일 22:30~23:30 KST에 요약, 표, 주의사항을 검수한다.
-11. 월요일 07:30 KST에 공개 Notion Site 메인 페이지의 `최신 주간 리포트` 링크를 새 페이지로 교체한다.
-12. `지난 리포트 아카이브`에 새 페이지 링크를 추가한다.
+1~2주 운영 검증 후 별도 PR로 v1 코드와 SQL view를 제거할 예정.
 
-## SEO 제목 원칙
+## SEO 제목 원칙 (사용자 공개 단계)
 
-주간 페이지 제목에는 날짜, 지역, 핵심 지표를 포함한다.
+주간 페이지 제목 예시:
 
-좋은 예:
-
-- `2026-06-01 서울 한강권 대표단지 갭 레이더`
-- `2026-06-01 강남 서초 송파 성동 마포 아파트 갭 추이`
-- `2026-06-01 서울 아파트 전세가율 회복 단지 주간 리포트`
-
-피할 예:
-
-- `이번 주 부동산`
-- `좋은 단지 정리`
-- `매수 타이밍`
+- 좋은 예: `2026-06-01 서울 한강권 대표단지 갭 레이더`
+- 피할 예: `이번 주 부동산`, `좋은 단지 정리`, `매수 타이밍`
 
 ## 표현 원칙
 
-사용할 표현:
+사용할 표현: 관찰 후보, 신규 시세, 갱신권 사용률 상승, 신규-갱신 압력 확대, 거래수 기준 신뢰도, 데이터상 변화가 큰 단지
 
-- 관찰 후보
-- 데이터상 변화가 큰 단지
-- 전세가율 회복 신호
-- 상대 갭 축소
-- 거래수 기준 신뢰도
+피할 표현: 매수 추천, 투자 추천, 저평가 확정, 상승 예상, 급등 임박, 전세 폭등, 무조건 사야 할 단지
 
-피할 표현:
+## 발행 후 확인 체크리스트
 
-- 매수 추천
-- 투자 추천
-- 저평가 확정
-- 상승 예상
-- 무조건 사야 할 단지
-- 급등 임박
-
-## 발행 후 확인
-
-- Notion Site가 공개 상태인지 확인한다.
-- 검색 엔진 인덱싱이 켜져 있는지 확인한다.
-- 메인 페이지에서 최신 리포트로 이동되는지 확인한다.
-- 지난 리포트 아카이브가 날짜순으로 정렬되어 있는지 확인한다.
-- 데이터 주의사항 섹션이 포함되어 있는지 확인한다.
+- 메인 페이지의 "이번 주 핵심 숫자" 5줄이 새 데이터로 갱신됐는지
+- "최신 주간 리포트" 링크가 새 페이지를 가리키는지
+- 새 주간 리포트 페이지가 "📡 서울 한강권 대표단지 갭 레이더" 하위에 있고 외부에서 접근 가능한지
+- "📥 발행 대기실"이 외부에 노출되지 않는지
+- 데이터 주의사항 섹션이 포함되어 있는지

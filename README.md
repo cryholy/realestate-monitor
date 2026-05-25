@@ -119,55 +119,86 @@ gh workflow run monitor.yml
 python3.11 -m pytest tests/ -v
 ```
 
-## 서울 한강권 대표단지 갭 레이더
+## 서울 한강권 대표단지 갭 레이더 (v2)
 
-무료 공개 Notion 리포트용 Markdown/CSV를 생성한다.
+서울 한강권 9개 구의 대표 아파트 단지+평형을 데이터로 선별하고, 매주 갭·전세가율·갱신 압력 변화를 추적하는 무료 공개 Notion 리포트.
 
 ### 1. SQL view 적용
 
-Supabase Studio SQL Editor에서 아래 파일을 실행한다.
+Supabase SQL Editor에서 두 파일 실행:
 
 ```text
-sql/007_gap_radar_views.sql
+sql/007_gap_radar_views.sql    (v1, 비교/롤백용)
+sql/008_gap_radar_v2_views.sql (v2, 기본)
 ```
-
-이 SQL은 다음 view를 만든다.
-
-- `v_gap_radar_sale_12m`
-- `v_gap_radar_rent_12m`
-- `v_gap_radar_candidate_scores`
-- `v_gap_radar_representative_items`
-- `v_gap_radar_weekly_rows`
 
 ### 2. 리포트 생성
 
 ```bash
 cd realestate_monitor
-python3.11 scripts/generate_gap_radar_report.py --date 2026-06-01
+python3.11 scripts/generate_gap_radar_report.py --version v2 --date 2026-06-01
 ```
 
-출력:
+산출물:
 
 ```text
-reports/gap-radar/2026-06-01.md
-reports/gap-radar/2026-06-01.csv
+reports/gap-radar/2026-06-01-v2.md
+reports/gap-radar/2026-06-01-v2.csv
 ```
 
-### 3. Notion 발행
+마지막 줄에 `COUNTS total_rows=.. high_reliability=.. ratio_up=.. gap_down=.. use_rate_up=..` 형식의 요약 카운트가 출력된다.
 
-발행 절차는 `docs/gap-radar-notion-publishing.md`를 따른다.
+### 3. Notion 비공개 발행
 
-초기 운영 원칙:
+```bash
+python3.11 scripts/notion_publish.py \
+  --date 2026-06-01 \
+  --markdown reports/gap-radar/2026-06-01-v2.md
+```
 
-- 광고 없음
-- 결제 없음
-- 무료 공개 Notion Site
-- 검색 인덱싱 ON
+`📥 발행 대기실` 아래에 `📊 2026-06-01 서울 한강권 대표단지 갭 레이더 (초안)` 페이지가 생성된다.
+
+### 4. 텔레그램 알림 (선택)
+
+cron이 자동 발송하지만 수동 실행 시:
+
+```bash
+python3.11 scripts/notify_gap_radar.py \
+  --mode success \
+  --date 2026-06-01 \
+  --page-url "https://www.notion.so/..." \
+  --total-rows 90 --high-reliability 33 --ratio-up 62 --gap-down 57 --use-rate-up 37
+```
+
+### 5. cron 운영
+
+`.github/workflows/gap_radar_weekly.yml` — 매주 일요일 22:30 KST (UTC 13:30)에 1~4단계 자동 수행. workflow_dispatch로 수동 트리거 가능. 자세한 절차는 `docs/gap-radar-notion-publishing.md`.
+
+운영 원칙:
+
+- 광고/결제 없음
+- 무료 공개 Notion Site (검색 인덱싱 ON)
 - 매주 리포트 아카이브 누적
-- 리포트 생성: 일요일 22:30 KST
-- 검수/초안 작성: 일요일 22:30~23:30 KST
-- 공개: 월요일 07:30 KST
-- 공개 방식: 항상 공개된 메인 페이지의 `최신 주간 리포트` 영역 갱신
+- 리포트 생성·발행: 일요일 22:30 KST (자동)
+- 검수·공개: 월요일 아침 (사용자 수동)
+- 공개 방식: 비공개 페이지 검수 후 메인 부모 페이지로 이동 + "최신 주간 리포트" 영역 갱신
+
+### 6. v1 (legacy)
+
+```bash
+python3.11 scripts/generate_gap_radar_report.py --version v1 --date 2026-06-01
+```
+
+v1 view·코드 경로는 1~2주 운영 검증 후 별도 PR로 제거 예정.
+
+### 추가 GitHub Secrets (v2)
+
+기존 `SUPABASE_*`, `TELEGRAM_*` 외에:
+
+```bash
+gh secret set NOTION_API_KEY              # Notion Integration token
+gh secret set NOTION_STAGING_PARENT_ID    # 📥 발행 대기실 페이지 ID
+```
 
 ## 디렉토리
 
