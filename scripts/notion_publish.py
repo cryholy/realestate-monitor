@@ -29,6 +29,45 @@ if str(ROOT) not in sys.path:
 MAX_TEXT_LEN = 1900  # Notion rich_text 셀당 2000자 제한 안전 마진
 
 
+_WEEKLY_TITLE_RE = re.compile(r"^\s*(\d{4}-\d{2}-\d{2})\s+서울 한강권 대표단지 갭 레이더\s*$")
+
+
+def archive_existing_same_date_page(
+    *,
+    client,
+    public_parent_id: str,
+    report_date: str,
+) -> list[str]:
+    """공개 부모 페이지 아래에 같은 날짜의 주간 리포트 child_page가 이미 있으면
+    archive(in_trash=true). 같은 날짜로 cron이 두 번 돌아도 페이지 중복을 막는다.
+
+    Returns: archive한 page id 목록.
+    """
+    archived: list[str] = []
+    cursor: str | None = None
+    while True:
+        kwargs = {"block_id": public_parent_id, "page_size": 100}
+        if cursor:
+            kwargs["start_cursor"] = cursor
+        resp = client.blocks.children.list(**kwargs)
+        for block in resp.get("results", []):
+            if block.get("type") != "child_page":
+                continue
+            title = block.get("child_page", {}).get("title", "")
+            match = _WEEKLY_TITLE_RE.match(title)
+            if match and match.group(1) == report_date:
+                try:
+                    client.pages.update(page_id=block["id"], in_trash=True)
+                    archived.append(block["id"])
+                    print(f"archived existing page for {report_date}: {block['id']}", file=sys.stderr)
+                except Exception as exc:
+                    print(f"failed to archive {block['id']}: {exc}", file=sys.stderr)
+        if not resp.get("has_more"):
+            break
+        cursor = resp.get("next_cursor")
+    return archived
+
+
 @dataclass(frozen=True)
 class PublishResult:
     page_id: str
@@ -153,7 +192,15 @@ def publish_weekly_page(
     markdown_body: str,
     csv_public_url: str | None = None,
 ) -> PublishResult:
-    """공개 부모 페이지 아래에 주간 리포트 페이지를 생성한다 (초안 표식 없음)."""
+    """공개 부모 페이지 아래에 주간 리포트 페이지를 생성한다 (초안 표식 없음).
+
+    같은 날짜 child_page가 이미 있으면 archive(in_trash) 후 새로 생성한다.
+    """
+    archive_existing_same_date_page(
+        client=client,
+        public_parent_id=public_parent_id,
+        report_date=report_date,
+    )
     title = f"{report_date} 서울 한강권 대표단지 갭 레이더"
     body = markdown_body
     if csv_public_url:
@@ -246,6 +293,7 @@ def update_parent_summary(
             ),
         ],
         placeholder_text="아직 발행된 리포트가 없습니다.",
+        duplicate_guard_text=f"{report_date} 서울 한강권 대표단지 갭 레이더",
     )
 
 
@@ -310,16 +358,22 @@ def _replace_section(
     section_heading: str,
     new_blocks: list[dict],
 ) -> None:
-    """섹션 본문(헤더 다음~다음 헤더 전)을 통째로 교체한다. children은 단일 append 호출."""
+    """섹션 본문(헤더 다음~다음 헤더 전)을 통째로 교체한다. children은 단일 append 호출.
+
+    child_page 블록은 보존(삭제 시도 X). 그 외 block delete 실패는 stderr 로깅 후 계속 진행.
+    """
     rng = _find_section_range(parent_blocks, section_heading)
     if rng is None:
+        print(f"SECTION_NOT_FOUND: {section_heading}", file=sys.stderr)
         return
     start, end = rng
     for block in parent_blocks[start:end]:
+        if block.get("type") == "child_page":
+            continue
         try:
             client.blocks.delete(block_id=block["id"])
-        except Exception:
-            pass
+        except Exception as exc:
+            print(f"failed to delete block {block['id']} ({block.get('type')}): {exc}", file=sys.stderr)
     heading_block_id = parent_blocks[start - 1]["id"]
     client.blocks.children.append(
         block_id=parent_page_id,
@@ -336,21 +390,33 @@ def _prepend_to_section(
     section_heading: str,
     new_blocks: list[dict],
     placeholder_text: str,
+    duplicate_guard_text: str | None = None,
 ) -> None:
-    """섹션 본문 맨 앞에 new_blocks 추가. placeholder 문장이 있으면 삭제 후 추가."""
+    """섹션 본문 맨 앞에 new_blocks 추가. placeholder가 있으면 삭제 후 추가.
+
+    `duplicate_guard_text`가 주어지면 기존 블록 중 그 텍스트를 포함하는 줄이 있으면
+    중복 추가하지 않는다 (재실행 idempotency).
+    """
     rng = _find_section_range(parent_blocks, section_heading)
     if rng is None:
+        print(f"SECTION_NOT_FOUND: {section_heading}", file=sys.stderr)
         return
     start, end = rng
 
     for block in parent_blocks[start:end]:
-        if block.get("type") == "paragraph":
-            text = "".join(rt.get("text", {}).get("content", "") for rt in block["paragraph"].get("rich_text", []))
-            if placeholder_text in text:
-                try:
-                    client.blocks.delete(block_id=block["id"])
-                except Exception:
-                    pass
+        text = ""
+        for kind in ("paragraph", "bulleted_list_item"):
+            if block.get("type") == kind:
+                text = "".join(rt.get("text", {}).get("content", "") for rt in block[kind].get("rich_text", []))
+                break
+        if placeholder_text and placeholder_text in text:
+            try:
+                client.blocks.delete(block_id=block["id"])
+            except Exception as exc:
+                print(f"failed to delete placeholder block {block['id']}: {exc}", file=sys.stderr)
+        if duplicate_guard_text and duplicate_guard_text in text:
+            print(f"duplicate guard hit for '{duplicate_guard_text}' — skipping prepend", file=sys.stderr)
+            return
 
     heading_block_id = parent_blocks[start - 1]["id"]
     client.blocks.children.append(
