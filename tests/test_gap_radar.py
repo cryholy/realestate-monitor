@@ -293,16 +293,31 @@ def test_render_markdown_report_v2_top_tables_sorted_by_weighted_delta():
     assert gangnam_pos < seongdong_pos
 
 
-def test_render_csv_v2_includes_new_columns():
+def test_render_csv_v2_uses_korean_headers_and_human_units():
     csv_text = render_csv_v2(sample_rows_v2())
-    assert "district_name,apt_name,size_label" in csv_text
-    assert "jeonse_new_median_90d" in csv_text
-    assert "renewal_right_use_rate_90d" in csv_text
-    assert "renewal_pct_change_median_90d" in csv_text
-    assert "new_minus_renewal_gap_90d" in csv_text
-    assert "reliability_weight" in csv_text
+    # 한국어 헤더
+    assert "구,단지,평형,생활권" in csv_text
+    assert "90일 매매 중위가" in csv_text
+    assert "전세가율" in csv_text
+    assert "갱신권 사용률" in csv_text
+    assert "신규-갱신 보증금 갭" in csv_text
+    assert "갭 변화" in csv_text
+    assert "신뢰도" in csv_text
+    # 디버깅 컬럼은 노출되지 않음
+    assert "weighted_gap_delta" not in csv_text
+    assert "reliability_weight" not in csv_text
+    assert "apt_seq" not in csv_text
+    # 식별 값
     assert "강남구,강남대표,84" in csv_text
     assert "성동구,성동대표,mid" in csv_text
+    # 사람 친화 단위
+    assert "20.8억" in csv_text     # sale_median_90d 208000 워싱
+    assert "13.2억" in csv_text     # jeonse_new_median_90d 132000 워싱
+    assert "63.5%" in csv_text      # jeonse_ratio_90d 0.6346 워싱
+    assert "62.0%" in csv_text      # renewal_right_use_rate_90d 0.62 워싱
+    # signed 변화
+    assert "-0.8억" in csv_text     # gap_delta -8000 워싱
+    assert "+3.1%" in csv_text      # ratio_delta 0.0308 워싱
 
 
 def test_summarize_v2_counts():
