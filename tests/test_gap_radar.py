@@ -320,6 +320,23 @@ def test_render_csv_v2_uses_korean_headers_and_human_units():
     assert "+3.1%" in csv_text      # ratio_delta 0.0308 워싱
 
 
+def test_write_report_v2_csv_starts_with_utf8_bom(tmp_path):
+    """Excel이 한글을 CP949로 오해석하지 않도록 CSV는 UTF-8 BOM으로 시작해야 한다."""
+    import sys
+    from pathlib import Path
+    ROOT = Path(__file__).resolve().parents[1]
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    from scripts.generate_gap_radar_report import write_report_v2
+
+    write_report_v2(sample_rows_v2(), report_date="2026-06-01", output_dir=tmp_path)
+    csv_path = tmp_path / "r" / "2026-06-01.csv"
+    raw = csv_path.read_bytes()
+    assert raw.startswith(b"\xef\xbb\xbf"), "CSV must start with UTF-8 BOM"
+    decoded = raw[3:].decode("utf-8")
+    assert "구,단지,평형" in decoded
+
+
 def test_summarize_v2_counts():
     from lib.gap_radar import summarize_v2_counts
     counts = summarize_v2_counts(sample_rows_v2())
