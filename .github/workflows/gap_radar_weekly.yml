@@ -34,26 +34,25 @@ jobs:
         id: date
         run: |
           if [ -n "${{ github.event.inputs.report_date }}" ]; then
-            echo "report_date=${{ github.event.inputs.report_date }}" >> "$GITHUB_OUTPUT"
+            REPORT_DATE="${{ github.event.inputs.report_date }}"
           else
-            python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          from datetime import datetime, timedelta, timezone
-          kst = timezone(timedelta(hours=9))
-          now_kst = datetime.now(timezone.utc).astimezone(kst)
-          days_until_monday = (7 - now_kst.weekday()) % 7 or 7
-          next_monday = (now_kst + timedelta(days=days_until_monday)).date()
-          print(f"report_date={next_monday.isoformat()}")
-          PY
+            REPORT_DATE=$(python3 scripts/resolve_report_date.py)
           fi
+          if [ -z "$REPORT_DATE" ]; then
+            echo "report date resolution failed"
+            exit 1
+          fi
+          echo "report_date=$REPORT_DATE" >> "$GITHUB_OUTPUT"
+          echo "Resolved report_date=$REPORT_DATE"
 
-      - name: Generate v2 report
+      - name: Generate report
         id: gen
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -o pipefail
-          OUT=$(python scripts/generate_gap_radar_report.py --version v2 --date "${{ steps.date.outputs.report_date }}")
+          OUT=$(python scripts/generate_gap_radar_report.py --date "${{ steps.date.outputs.report_date }}")
           echo "$OUT"
           COUNTS_LINE=$(echo "$OUT" | grep -E '^COUNTS ' || true)
           if [ -z "$COUNTS_LINE" ]; then
@@ -65,7 +64,7 @@ jobs:
             echo "$COUNTS_LINE"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
-          echo "markdown_path=reports/gap-radar/${{ steps.date.outputs.report_date }}-v2.md" >> "$GITHUB_OUTPUT"
+          echo "markdown_path=reports/gap-radar/${{ steps.date.outputs.report_date }}.md" >> "$GITHUB_OUTPUT"
           echo "csv_path=reports/gap-radar/r/${{ steps.date.outputs.report_date }}.csv" >> "$GITHUB_OUTPUT"
           echo "summary_path=reports/gap-radar/${{ steps.date.outputs.report_date }}-summary.json" >> "$GITHUB_OUTPUT"
 
@@ -100,6 +99,10 @@ jobs:
             --summary "${{ steps.gen.outputs.summary_path }}" \
             --csv-url "${{ steps.upload.outputs.csv_url }}")
           echo "$OUT"
+          if echo "$OUT" | grep -q '^SECTION_NOT_FOUND: '; then
+            echo "parent page section missing — see stderr above"
+            exit 1
+          fi
           PAGE_URL=$(echo "$OUT" | awk -F': ' '/^URL: /{print $2}')
           if [ -z "$PAGE_URL" ]; then
             echo "URL line missing — publish may have failed"
