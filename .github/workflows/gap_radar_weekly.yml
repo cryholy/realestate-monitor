@@ -67,6 +67,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "markdown_path=reports/gap-radar/${{ steps.date.outputs.report_date }}-v2.md" >> "$GITHUB_OUTPUT"
           echo "csv_path=reports/gap-radar/r/${{ steps.date.outputs.report_date }}.csv" >> "$GITHUB_OUTPUT"
+          echo "summary_path=reports/gap-radar/${{ steps.date.outputs.report_date }}-summary.json" >> "$GITHUB_OUTPUT"
 
       - name: Upload CSV to Supabase Storage
         id: upload
@@ -86,16 +87,17 @@ jobs:
           fi
           echo "csv_url=$CSV_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Publish draft to Notion staging
+      - name: Publish to public parent + update parent summary
         id: publish
         env:
           NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
-          NOTION_STAGING_PARENT_ID: ${{ secrets.NOTION_STAGING_PARENT_ID }}
+          NOTION_PUBLIC_PARENT_ID: ${{ secrets.NOTION_PUBLIC_PARENT_ID }}
         run: |
           set -o pipefail
           OUT=$(python scripts/notion_publish.py \
             --date "${{ steps.date.outputs.report_date }}" \
             --markdown "${{ steps.gen.outputs.markdown_path }}" \
+            --summary "${{ steps.gen.outputs.summary_path }}" \
             --csv-url "${{ steps.upload.outputs.csv_url }}")
           echo "$OUT"
           PAGE_URL=$(echo "$OUT" | awk -F': ' '/^URL: /{print $2}')

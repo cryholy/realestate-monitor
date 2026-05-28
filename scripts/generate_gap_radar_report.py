@@ -21,6 +21,7 @@ from lib.db import get_client  # noqa: E402
 from lib.gap_radar import (  # noqa: E402
     RadarRow,
     RadarRowV2,
+    build_weekly_headline,
     render_csv,
     render_csv_v2,
     render_markdown_report,
@@ -64,20 +65,36 @@ def write_report_v1(rows: list[RadarRow], *, report_date: str, output_dir: Path)
     return markdown_path, csv_path
 
 
-def write_report_v2(rows: list[RadarRowV2], *, report_date: str, output_dir: Path) -> tuple[Path, Path]:
+def write_report_v2(rows: list[RadarRowV2], *, report_date: str, output_dir: Path) -> tuple[Path, Path, Path]:
     """v2 산출물.
 
     - Markdown은 `output_dir/{date}-v2.md` (내부 식별용, v2 suffix 유지)
     - CSV는 `output_dir/r/{date}.csv` — Supabase Storage 객체 키 `r/{date}.csv` 와 1:1 매핑.
       Excel이 한글을 CP949로 오해석하지 않도록 UTF-8 BOM 포함(`utf-8-sig`)으로 저장한다.
+    - summary는 `output_dir/{date}-summary.json` — counts + headline. cron에서 notion_publish가 사용.
     """
+    import json as _json
     markdown_path = output_dir / f"{report_date}-v2.md"
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "r" / f"{report_date}.csv"
     csv_path.parent.mkdir(parents=True, exist_ok=True)
+    summary_path = output_dir / f"{report_date}-summary.json"
+
     markdown_path.write_text(render_markdown_report_v2(rows, report_date=report_date), encoding="utf-8")
     csv_path.write_text(render_csv_v2(rows), encoding="utf-8-sig")
-    return markdown_path, csv_path
+    summary_path.write_text(
+        _json.dumps(
+            {
+                "report_date": report_date,
+                "counts": summarize_v2_counts(rows),
+                "headline": build_weekly_headline(rows),
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    return markdown_path, csv_path, summary_path
 
 
 def main() -> int:
@@ -120,11 +137,12 @@ def main() -> int:
         if not rows:
             print("v_gap_radar_weekly_rows_v2 결과가 없습니다. v2 SQL view와 데이터 적재 상태를 확인하세요.", file=sys.stderr)
             return 1
-        markdown_path, csv_path = write_report_v2(rows, report_date=args.date, output_dir=output_dir)
+        markdown_path, csv_path, summary_path = write_report_v2(rows, report_date=args.date, output_dir=output_dir)
         counts = summarize_v2_counts(rows)
         print(f"Version: {args.version}")
         print(f"Markdown: {markdown_path}")
         print(f"CSV: {csv_path}")
+        print(f"Summary: {summary_path}")
         print(f"Rows: {len(rows)}")
         print(
             "COUNTS "

@@ -590,6 +590,40 @@ def render_csv_v2(rows: list[RadarRowV2]) -> str:
     return out.getvalue()
 
 
+def build_weekly_headline(rows: list[RadarRowV2]) -> str:
+    """부모 페이지 '최신 주간 리포트' 영역에 들어갈 1줄 자동 요약.
+
+    신뢰도 높음 항목 중 가장 두드러진 갭 축소 1건 + 갱신권 사용률 상승 1건을 인용한다.
+    인용할 만한 신호가 없으면 일반 안내문을 반환한다.
+    """
+    high_rel = [r for r in rows if r.reliability_label == "신뢰도 높음"]
+    gap_top = sorted(
+        [r for r in high_rel if r.weighted_gap_delta is not None and r.weighted_gap_delta < 0],
+        key=lambda r: r.weighted_gap_delta,
+    )
+    use_top = sorted(
+        [r for r in high_rel if r.weighted_use_rate_delta is not None and r.weighted_use_rate_delta > 0],
+        key=lambda r: r.weighted_use_rate_delta,
+        reverse=True,
+    )
+
+    parts: list[str] = []
+    if gap_top:
+        r = gap_top[0]
+        parts.append(
+            f"{r.district_name} {r.apt_name} {r.size_label}의 갭 {format_eok_signed(r.gap_delta)} 축소가 가장 두드러졌고"
+        )
+    if use_top:
+        r = use_top[0]
+        parts.append(
+            f"{r.district_name} {r.apt_name} {r.size_label}에서 갱신권 사용률이 {format_ratio_signed(r.use_rate_delta)} 상승했습니다"
+        )
+
+    if not parts:
+        return "이번 주는 신뢰도 높음 항목에서 두드러진 변화 신호가 적었습니다. 상세는 리포트를 참고하세요."
+    return "이번 주는 " + ", ".join(parts) + "."
+
+
 def summarize_v2_counts(rows: list[RadarRowV2]) -> dict[str, int]:
     return {
         "total_rows": len(rows),

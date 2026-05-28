@@ -31,7 +31,7 @@ def build_success_message(
     use_rate_up: int,
 ) -> str:
     return (
-        f"📊 갭 레이더 {report_date} 초안 작성 완료\n"
+        f"📊 갭 레이더 {report_date} 발행 완료\n"
         f"\n"
         f"분석 항목 {total_rows}개\n"
         f"신뢰도 높음 {high_reliability}개\n"
@@ -39,9 +39,9 @@ def build_success_message(
         f"갭 축소 {gap_down}개\n"
         f"갱신권 사용률 상승 {use_rate_up}개\n"
         f"\n"
-        f"검수 URL: {page_url}\n"
+        f"공개 URL: {page_url}\n"
         f"\n"
-        f"월요일 아침 검수 후 페이지를 공개 부모로 이동시키고 메인 페이지 영역을 갱신해 공개해 주세요."
+        f"부모 페이지의 핵심 숫자·최신 리포트·지난 리포트 영역도 자동 갱신됐습니다."
     )
 
 

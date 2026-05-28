@@ -28,7 +28,10 @@ def test_build_success_message_includes_url_and_counts():
     assert "전세가율 상승 58" in msg
     assert "갭 축소 55" in msg
     assert "갱신권 사용률 상승 33" in msg
-    assert "초안" in msg
+    # 자동 공개 흐름이므로 "초안" 같은 단어가 들어가지 않아야 함
+    assert "초안" not in msg
+    assert "발행 완료" in msg
+    assert "공개" in msg
 
 
 def test_build_failure_message_includes_reason():

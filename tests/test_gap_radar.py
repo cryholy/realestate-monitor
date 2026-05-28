@@ -320,6 +320,41 @@ def test_render_csv_v2_uses_korean_headers_and_human_units():
     assert "+3.1%" in csv_text      # ratio_delta 0.0308 워싱
 
 
+def test_build_weekly_headline_quotes_top_signals():
+    from lib.gap_radar import build_weekly_headline
+    headline = build_weekly_headline(sample_rows_v2())
+    # 신뢰도 높음 항목(강남대표 84) 기반 갭 축소 멘트
+    assert "강남구 강남대표 84" in headline
+    assert "갭" in headline
+    # 신뢰도 높음 항목 기반 갱신권 사용률 상승 멘트 (강남대표는 use_rate_delta=+7%)
+    assert "갱신권 사용률" in headline
+
+
+def test_build_weekly_headline_falls_back_when_no_high_reliability_signal():
+    from lib.gap_radar import RadarRowV2, build_weekly_headline
+    rows = [
+        RadarRowV2(
+            district_rank=1, representative_score=50, apt_seq="x", apt_name="x", sgg_cd="x",
+            district_name="x", lifestyle_area="x", size_label="84",
+            sale_count_12m=0, sale_median_12m=None,
+            jeonse_new_count_12m=0, jeonse_new_median_12m=None,
+            sale_count_90d=None, sale_median_90d=None,
+            jeonse_new_count_90d=None, jeonse_new_median_90d=None,
+            gap_90d=None, jeonse_ratio_90d=None,
+            jeonse_renewal_count_90d=None, jeonse_renewal_median_90d=None,
+            renewal_right_use_rate_90d=None, renewal_pct_change_median_90d=None,
+            new_minus_renewal_gap_90d=None,
+            sale_count_prev_90d=None, sale_median_prev_90d=None,
+            jeonse_new_count_prev_90d=None, jeonse_new_median_prev_90d=None,
+            gap_prev_90d=None, jeonse_ratio_prev_90d=None,
+            renewal_right_use_rate_prev_90d=None,
+            reliability_label="데이터 부족", reliability_weight=0.0,
+        ),
+    ]
+    headline = build_weekly_headline(rows)
+    assert "두드러진 변화 신호가 적었습니다" in headline
+
+
 def test_write_report_v2_csv_starts_with_utf8_bom(tmp_path):
     """Excel이 한글을 CP949로 오해석하지 않도록 CSV는 UTF-8 BOM으로 시작해야 한다."""
     import sys
