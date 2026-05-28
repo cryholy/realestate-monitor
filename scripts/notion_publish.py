@@ -195,13 +195,18 @@ def update_parent_summary(
     """부모 페이지의 3개 영역 자동 갱신.
 
     - "최신 주간 리포트" : 새 페이지 링크 + headline 1줄
-    - "이번 주 핵심 숫자" : 5줄 카운트 (사용자가 5/26에 다듬은 '평형 84/59/mid' 라벨 유지)
+    - "이번 주 핵심 숫자" : 5줄 카운트
     - "지난 리포트" : 새 페이지 링크를 맨 위에 누적
+
+    구현 메모: section 갱신은 delete + 단일 append (children 배열 한번에) 으로 처리한다.
+    block 1개씩 따로 append + after 갱신은 Notion API에서 위치가 의도와 다르게 결정되어 본문이
+    page 끝(child_page 뒤)으로 표류한다. 또한 각 section 처리 후 페이지 children list가 변경되니
+    매 section마다 다시 fetch한다.
     """
     parent_blocks = _list_all_children(client, public_parent_id)
-
     _replace_section(
         client=client,
+        parent_page_id=public_parent_id,
         parent_blocks=parent_blocks,
         section_heading="최신 주간 리포트",
         new_blocks=[
@@ -213,8 +218,10 @@ def update_parent_summary(
         ],
     )
 
+    parent_blocks = _list_all_children(client, public_parent_id)
     _replace_section(
         client=client,
+        parent_page_id=public_parent_id,
         parent_blocks=parent_blocks,
         section_heading="이번 주 핵심 숫자",
         new_blocks=[
@@ -226,8 +233,10 @@ def update_parent_summary(
         ],
     )
 
+    parent_blocks = _list_all_children(client, public_parent_id)
     _prepend_to_section(
         client=client,
+        parent_page_id=public_parent_id,
         parent_blocks=parent_blocks,
         section_heading="지난 리포트",
         new_blocks=[
@@ -296,11 +305,12 @@ def _find_section_range(blocks: list[dict], heading_text: str) -> tuple[int, int
 def _replace_section(
     *,
     client,
+    parent_page_id: str,
     parent_blocks: list[dict],
     section_heading: str,
     new_blocks: list[dict],
 ) -> None:
-    """섹션 본문(헤더 다음~다음 헤더 전)을 통째로 교체한다."""
+    """섹션 본문(헤더 다음~다음 헤더 전)을 통째로 교체한다. children은 단일 append 호출."""
     rng = _find_section_range(parent_blocks, section_heading)
     if rng is None:
         return
@@ -310,28 +320,18 @@ def _replace_section(
             client.blocks.delete(block_id=block["id"])
         except Exception:
             pass
-    # 추가할 위치: 헤더 블록 바로 뒤. Notion API는 children.append + after 파라미터로 가능.
     heading_block_id = parent_blocks[start - 1]["id"]
-    # after 미지원 시 단순 append 후 위치 수동 정렬 필요. 일단 단순 append.
-    page_id = parent_blocks[0]["parent"].get("page_id") if parent_blocks else None
-    # 더 안전: section_heading 직후 위치 지정 append는 blocks.children.append + after.
-    # notion-client는 'after' 파라미터를 지원.
-    after_id = heading_block_id
-    for block in new_blocks:
-        resp = client.blocks.children.append(
-            block_id=_resolve_parent_id(parent_blocks),
-            children=[block],
-            after=after_id,
-        )
-        # 다음 블록도 같은 위치 뒤에 붙이기 위해 마지막 추가된 block id 갱신
-        last = resp.get("results", [])
-        if last:
-            after_id = last[-1]["id"]
+    client.blocks.children.append(
+        block_id=parent_page_id,
+        children=new_blocks,
+        after=heading_block_id,
+    )
 
 
 def _prepend_to_section(
     *,
     client,
+    parent_page_id: str,
     parent_blocks: list[dict],
     section_heading: str,
     new_blocks: list[dict],
@@ -343,7 +343,6 @@ def _prepend_to_section(
         return
     start, end = rng
 
-    # placeholder 텍스트가 본문에 있으면 그것만 정리하고 첫 자리에 누적
     for block in parent_blocks[start:end]:
         if block.get("type") == "paragraph":
             text = "".join(rt.get("text", {}).get("content", "") for rt in block["paragraph"].get("rich_text", []))
@@ -354,25 +353,11 @@ def _prepend_to_section(
                     pass
 
     heading_block_id = parent_blocks[start - 1]["id"]
-    after_id = heading_block_id
-    for block in new_blocks:
-        resp = client.blocks.children.append(
-            block_id=_resolve_parent_id(parent_blocks),
-            children=[block],
-            after=after_id,
-        )
-        last = resp.get("results", [])
-        if last:
-            after_id = last[-1]["id"]
-
-
-def _resolve_parent_id(parent_blocks: list[dict]) -> str:
-    """block list에서 부모 page id 추출."""
-    for b in parent_blocks:
-        parent = b.get("parent", {})
-        if parent.get("type") == "page_id":
-            return parent["page_id"]
-    raise RuntimeError("could not resolve parent page id from block list")
+    client.blocks.children.append(
+        block_id=parent_page_id,
+        children=new_blocks,
+        after=heading_block_id,
+    )
 
 
 def main() -> int:
