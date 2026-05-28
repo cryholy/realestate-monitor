@@ -1,31 +1,27 @@
-# 서울 한강권 대표단지 갭 레이더 Notion 발행 가이드 (v2)
+# 서울 한강권 대표단지 갭 레이더 Notion 발행 가이드
 
 ## 흐름 요약
 
 ```
 [자동 — 일요일 22:30 KST]
 GitHub Actions cron (.github/workflows/gap_radar_weekly.yml)
-  ├ python scripts/generate_gap_radar_report.py --version v2 --date <다음 월요일>
-  ├ python scripts/notion_publish.py  →  📥 발행 대기실 / 📊 ... (초안)
+  ├ python scripts/generate_gap_radar_report.py --date <다음 월요일>
+  ├ python scripts/notion_publish.py  →  📡 서울 한강권 대표단지 갭 레이더 / 📊 ...
   └ python scripts/notify_gap_radar.py --mode success  →  텔레그램 알림
 
 [수동 — 월요일 아침]
 사용자
-  ├ 텔레그램 알림에서 URL 확인 → 비공개 페이지 열기
-  ├ 본문 검수
-  ├ 페이지 제목에서 "(초안)" 제거
-  ├ notion-move-pages 또는 UI 드래그로 "📡 서울 한강권 대표단지 갭 레이더" 하위로 이동
-  └ 부모 페이지의 "이번 주 핵심 숫자" + "최신 주간 리포트" 영역 갱신
+  └ 텔레그램 알림에서 URL 확인 → 공개 페이지 확인
 ```
 
 ## 운영 원칙
 
 - 광고/결제 없음
 - 무료 공개 Notion Site (검색 인덱싱 ON)
-- 매주 리포트 아카이브 누적
+- 매주 리포트 아카이브 누적 (자동)
 - 리포트 생성·발행: 일요일 22:30 KST (자동)
-- 검수·공개: 월요일 아침 (사용자 수동)
-- 공개 방식: 메인 페이지의 "최신 주간 리포트" 링크 영역 갱신
+- 사용자 검수: 텔레그램 알림 확인 (즉시 공개)
+- 공개 방식: 메인 페이지의 "최신 주간 리포트" / "이번 주 핵심 숫자" / "지난 리포트" 영역이 발행 시 자동 갱신
 
 ## 필요 환경 변수 (GitHub Secrets)
 
@@ -34,7 +30,7 @@ GitHub Actions cron (.github/workflows/gap_radar_weekly.yml)
 | `SUPABASE_URL` | Supabase project URL |
 | `SUPABASE_SERVICE_ROLE_KEY` | view SELECT 권한 |
 | `NOTION_API_KEY` | Notion Integration token (Internal type 권장) |
-| `NOTION_STAGING_PARENT_ID` | `📥 발행 대기실` 페이지 ID |
+| `NOTION_PUBLIC_PARENT_ID` | `📡 서울 한강권 대표단지 갭 레이더` 부모 페이지 ID |
 | `TELEGRAM_BOT_TOKEN` | 기존 봇 재사용 |
 | `TELEGRAM_CHAT_ID` | 알림 받을 chat_id |
 
@@ -45,12 +41,9 @@ GitHub Actions cron (.github/workflows/gap_radar_weekly.yml)
 ```text
 📡 서울 한강권 대표단지 갭 레이더 (공개)
 ├─ 📘 소개 / 방법론
-├─ 📊 YYYY-MM-DD 주간 리포트 (← 최신)
-├─ 📊 YYYY-MM-DD 주간 리포트 (← 이전들 누적)
+├─ 📊 YYYY-MM-DD 주간 리포트 (← 최신, 자동 생성)
+├─ 📊 YYYY-MM-DD 주간 리포트 (← 이전들 누적, 자동)
 └─ (향후) 업데이트 알림 안내
-
-📥 발행 대기실 (비공개, cron 산출물 대기)
-└─ 📊 YYYY-MM-DD 서울 한강권 대표단지 갭 레이더 (초안)
 ```
 
 ## 메인 페이지 필수 섹션
@@ -75,10 +68,12 @@ gh workflow run gap_radar_weekly.yml -f report_date=2026-06-01
 
 ```bash
 cd realestate_monitor
-python3.11 scripts/generate_gap_radar_report.py --version v2 --date 2026-06-01
+python3.11 scripts/generate_gap_radar_report.py --date 2026-06-01
 python3.11 scripts/notion_publish.py \
   --date 2026-06-01 \
-  --markdown reports/gap-radar/2026-06-01-v2.md
+  --markdown reports/gap-radar/2026-06-01.md \
+  --summary reports/gap-radar/2026-06-01-summary.json \
+  --csv-url "https://flsbxpjywjuhylfwnrby.supabase.co/storage/v1/object/public/reports/r/2026-06-01.csv"
 # 알림 발송은 선택적
 python3.11 scripts/notify_gap_radar.py \
   --mode success \
@@ -87,15 +82,7 @@ python3.11 scripts/notify_gap_radar.py \
   --total-rows NN --high-reliability NN --ratio-up NN --gap-down NN --use-rate-up NN
 ```
 
-## v1 (legacy)
-
-v1 view (`v_gap_radar_weekly_rows`)와 v1 렌더러(`render_markdown_report`)는 보존되어 있다. 비교 또는 롤백이 필요하면:
-
-```bash
-python3.11 scripts/generate_gap_radar_report.py --version v1 --date 2026-06-01
-```
-
-1~2주 운영 검증 후 별도 PR로 v1 코드와 SQL view를 제거할 예정.
+같은 날짜로 재실행하면 기존 페이지를 archive 후 새로 생성한다 (idempotency 가드).
 
 ## SEO 제목 원칙 (사용자 공개 단계)
 
