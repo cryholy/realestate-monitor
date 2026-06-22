@@ -1,8 +1,33 @@
 from unittest.mock import patch
 
 import pytest
+import requests
 
-from lib.api import parse_xml, fetch_sales, fetch_rents, make_record_id
+from lib.api import (
+    parse_xml,
+    fetch_sales,
+    fetch_rents,
+    make_record_id,
+    _http_get,
+    API_RETRY_BACKOFFS,
+)
+
+
+@patch("lib.api.time.sleep", lambda *_: None)
+@patch("lib.api.requests.get")
+def test_http_get_retries_bounded_then_raises(mock_get):
+    """API가 계속 죽으면 (백오프 수 + 1)회만 시도하고 RuntimeError를 던진다.
+
+    cron 타임아웃의 근본 원인이 '재시도 누적 시간'이므로 시도 횟수를 잠근다.
+    """
+    mock_get.side_effect = requests.exceptions.ReadTimeout("timed out")
+
+    with pytest.raises(RuntimeError) as exc:
+        _http_get("https://example.com", {"a": 1})
+
+    attempts = len(API_RETRY_BACKOFFS) + 1
+    assert mock_get.call_count == attempts
+    assert f"{attempts}회 시도" in str(exc.value)
 
 
 def test_parse_xml_sale(sale_xml):

@@ -77,30 +77,74 @@ def ymd_list(months_back: int) -> list[str]:
     return out
 
 
-def collect_records(service_key: str, months: int) -> tuple[list[dict], list[dict]]:
-    """9개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착."""
+def _fetch_batch(fetch_fn, kind, *, lawd_cd, ymd, service_key) -> tuple[list[dict], bool]:
+    """단일 구·단일 종류 fetch. (records, ok) 반환. 실패는 로깅하고 ([], False)."""
+    label = "매매" if kind == "sale" else "전월세"
+    try:
+        batch = list(fetch_fn(lawd_cd=lawd_cd, ymd=ymd, service_key=service_key))
+        for r in batch:
+            r["id"] = make_record_id(r, kind=kind)
+        return batch, True
+    except Exception as e:
+        logger.error("%s fetch 실패 lawd=%s ymd=%s: %s", label, lawd_cd, ymd, e)
+        return [], False
+
+
+def collect_records(
+    service_key: str,
+    months: int,
+    *,
+    persist=None,
+    max_consecutive_failures: int = 3,
+    fetch_sales=fetch_sales,
+    fetch_rents=fetch_rents,
+    sleep=time.sleep,
+) -> tuple[list[dict], list[dict], bool]:
+    """9개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착.
+
+    persist: 선택. callable(table_name, records) — 구 단위로 즉시 호출돼 점진 저장한다.
+             None이면 누적만 하고 저장은 호출자 몫. (DB 장애 시 예외는 그대로 전파)
+    max_consecutive_failures: 연속으로 이만큼의 구가 통째로(매매·전월세 모두) 실패하면
+             외부 API 다운으로 보고 조기 종료한다. cron 타임아웃 누적을 막는 서킷 브레이커.
+
+    Returns: (sales, rents, aborted) — aborted=True면 서킷 브레이커로 조기 종료.
+    """
     sales: list[dict] = []
     rents: list[dict] = []
+    consecutive_failures = 0
+    aborted = False
 
     for ymd in ymd_list(months):
+        if aborted:
+            break
         for lawd_cd, district_name in DISTRICT_LAWD_CDS:
-            try:
-                for r in fetch_sales(lawd_cd=lawd_cd, ymd=ymd, service_key=service_key):
-                    r["id"] = make_record_id(r, kind="sale")
-                    sales.append(r)
-            except Exception as e:
-                logger.error("매매 fetch 실패 lawd=%s ymd=%s: %s", lawd_cd, ymd, e)
+            sale_batch, sale_ok = _fetch_batch(
+                fetch_sales, "sale", lawd_cd=lawd_cd, ymd=ymd, service_key=service_key)
+            rent_batch, rent_ok = _fetch_batch(
+                fetch_rents, "rent", lawd_cd=lawd_cd, ymd=ymd, service_key=service_key)
 
-            try:
-                for r in fetch_rents(lawd_cd=lawd_cd, ymd=ymd, service_key=service_key):
-                    r["id"] = make_record_id(r, kind="rent")
-                    rents.append(r)
-            except Exception as e:
-                logger.error("전월세 fetch 실패 lawd=%s ymd=%s: %s", lawd_cd, ymd, e)
+            sales.extend(sale_batch)
+            rents.extend(rent_batch)
+            if persist is not None:
+                if sale_batch:
+                    persist("sale_records", sale_batch)
+                if rent_batch:
+                    persist("rent_records", rent_batch)
 
-            time.sleep(0.5)   # rate limit safety margin
+            if sale_ok or rent_ok:
+                consecutive_failures = 0
+            else:
+                consecutive_failures += 1
+                if consecutive_failures >= max_consecutive_failures:
+                    logger.error(
+                        "연속 %d개 구 fetch 전부 실패 — 외부 API 장애로 판단, 조기 종료",
+                        consecutive_failures)
+                    aborted = True
+                    break
 
-    return sales, rents
+            sleep(0.5)   # rate limit safety margin
+
+    return sales, rents, aborted
 
 
 def find_new_records(client, table: str, candidate_records: list[dict]) -> list[dict]:
@@ -281,18 +325,23 @@ def main() -> int:
     new_rents: list[dict] = []
     sales: list[dict] = []
     rents: list[dict] = []
+    aborted = False
 
     if not args.skip_fetch:
+        # 구 단위 점진 저장: fetch 직후 신규 식별(upsert 전!) → upsert. 중간에 서킷
+        # 브레이커로 끊겨도 받은 만큼은 이미 DB에 들어가 있다.
+        def persist(table: str, records: list[dict]) -> None:
+            target = new_sales if table == "sale_records" else new_rents
+            target.extend(find_new_records(client, table, records))
+            upsert_records(client, table, records)
+
         logger.info("데이터 수집 시작 (직전 %d개월, %d개 구)", args.backfill_months, len(DISTRICT_LAWD_CDS))
-        sales, rents = collect_records(service_key, args.backfill_months)
+        sales, rents, aborted = collect_records(
+            service_key, args.backfill_months, persist=persist)
         logger.info("수집 완료: 매매 %d건, 전월세 %d건", len(sales), len(rents))
-
-        new_sales = find_new_records(client, "sale_records", sales)
-        new_rents = find_new_records(client, "rent_records", rents)
         logger.info("DB 신규: 매매 %d건, 전월세 %d건", len(new_sales), len(new_rents))
-
-        upsert_records(client, "sale_records", sales)
-        upsert_records(client, "rent_records", rents)
+        if aborted:
+            logger.warning("외부 API 장애로 일부 구만 수집하고 조기 종료했습니다")
 
     rules = load_alert_rules(client)
     logger.info("활성 알림 룰: %d개", len(rules))
@@ -314,6 +363,8 @@ def main() -> int:
         price_alerts_sent=price_sent,
         jeonse_alerts_sent=jeonse_sent,
     )
+    if aborted:
+        summary = "⚠️ 외부 API 장애로 일부 구만 수집했습니다 (조기 종료)\n\n" + summary
     if args.dry_run:
         logger.info("[DRY-RUN] would send summary: %s", summary.replace("\n", " | "))
     else:

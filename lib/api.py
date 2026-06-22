@@ -12,7 +12,10 @@ SALE_ENDPOINT = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSD
 RENT_ENDPOINT = "https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent"
 
 API_TIMEOUT = 15
-API_RETRY_BACKOFFS = [1, 3, 10]
+# 4회→3회 시도로 축소. 최장 10초 백오프 꼬리를 제거해 fetch 1건당 최악 소요를
+# 74초→52초로 낮춘다(서킷 브레이커와 함께 cron 타임아웃 취소를 방지). read timeout(15s)은
+# '느리지만 동작하는' 정부 API를 끊지 않도록 유지.
+API_RETRY_BACKOFFS = [2, 5]
 
 
 def _text(item: ET.Element, tag: str) -> str:
@@ -192,8 +195,9 @@ def make_record_id(record: dict, kind: str) -> str:
 
 
 def _http_get(url: str, params: dict) -> str:
+    delays = [0] + API_RETRY_BACKOFFS
     last_exc = None
-    for delay in [0] + API_RETRY_BACKOFFS:
+    for delay in delays:
         if delay:
             time.sleep(delay)
         try:
@@ -203,7 +207,7 @@ def _http_get(url: str, params: dict) -> str:
         except requests.RequestException as e:
             last_exc = e
             continue
-    raise RuntimeError(f"API 호출 실패 (4회 시도): {url} — {last_exc}")
+    raise RuntimeError(f"API 호출 실패 ({len(delays)}회 시도): {url} — {last_exc}")
 
 
 def fetch_sales(*, lawd_cd: str, ymd: str, service_key: str) -> list[dict]:
