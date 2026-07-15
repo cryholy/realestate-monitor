@@ -43,6 +43,18 @@ def _int_or_none(s: str) -> Optional[int]:
         return None
 
 
+def _float_or_none(s: str) -> Optional[float]:
+    """비수치 excluUseAr('-' 등) 1건이 parse_xml 컴프리헨션 전체를 ValueError로
+    드롭시키지 않도록, 다른 숫자 필드와 동일하게 안전 파싱한다."""
+    s = s.replace(",", "").replace(" ", "")
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def _ymd_or_none(year: str, month: str, day: str) -> Optional[str]:
     """y/m/d 문자열 → 'YYYY-MM-DD' 또는 None (달력상 실재하는 날짜만 통과).
 
@@ -86,7 +98,7 @@ def _parse_sale_item(item: ET.Element) -> dict:
     else:
         road_address = None
 
-    area = float(_text(item, "excluUseAr") or 0)
+    area = _float_or_none(_text(item, "excluUseAr")) or 0.0
 
     return {
         "apt_seq":         _text(item, "aptSeq"),
@@ -119,7 +131,7 @@ def _parse_rent_item(item: ET.Element) -> dict:
         _text(item, "dealMonth"),
         _text(item, "dealDay"),
     )
-    area = float(_text(item, "excluUseAr") or 0)
+    area = _float_or_none(_text(item, "excluUseAr")) or 0.0
 
     return {
         "apt_seq":              _text(item, "aptSeq"),

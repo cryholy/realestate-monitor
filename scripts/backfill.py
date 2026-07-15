@@ -64,7 +64,7 @@ def main() -> int:
                         r.get("deal_date"), r.get("price_만원"), r.get("area"))
         return 0
 
-    # 500건씩 batch UPSERT (Supabase 한 번에 크게 보내면 timeout 가능)
+    # 100건씩 batch UPSERT (Supabase 한 번에 크게 보내면 timeout 가능)
     BATCH = 100
     total_sale = len(sales)
     for i in range(0, total_sale, BATCH):

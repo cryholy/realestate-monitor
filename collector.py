@@ -200,7 +200,6 @@ def process_price_alerts(
 
         msg = format_price_message(
             c.rule, c.record,
-            median_sale=c.record["price_만원"],
             median_jeonse=median_jeonse,
             sample_count_jeonse=n_jeonse,
         )

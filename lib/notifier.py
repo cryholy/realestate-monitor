@@ -23,7 +23,6 @@ def format_price_message(
     rule: dict,
     record: dict,
     *,
-    median_sale: int,
     median_jeonse: int | None,
     sample_count_jeonse: int,
 ) -> str:

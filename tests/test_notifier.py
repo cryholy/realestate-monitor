@@ -26,7 +26,7 @@ def test_format_price_message_includes_all_fields():
     rule = {"display_name": "예시단지A", "size_label": "84", "max_price_만원": 200000}
     record = {"price_만원": 198000, "floor": 15, "deal_date": "2026-04-28",
               "dealing_type": "중개거래"}
-    msg = format_price_message(rule, record, median_sale=198000, median_jeonse=125000,
+    msg = format_price_message(rule, record, median_jeonse=125000,
                                 sample_count_jeonse=12)
 
     assert "예시단지A 84㎡" in msg
@@ -41,7 +41,7 @@ def test_format_price_message_includes_all_fields():
 def test_format_price_message_when_no_jeonse_data():
     rule = {"display_name": "예시단지F", "size_label": "84"}
     record = {"price_만원": 195000, "floor": 10, "deal_date": "2026-04-20"}
-    msg = format_price_message(rule, record, median_sale=195000, median_jeonse=None,
+    msg = format_price_message(rule, record, median_jeonse=None,
                                 sample_count_jeonse=0)
 
     assert "전세 데이터 부족" in msg

@@ -1,4 +1,4 @@
-from lib.matcher import compute_size_label, SIZE_LABELS
+from lib.matcher import compute_size_label
 
 
 def test_size_label_59():

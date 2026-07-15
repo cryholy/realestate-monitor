@@ -205,3 +205,36 @@ def test_m7_dedup_check_chunks_over_limit():
     dedup_check(mock, candidates)
 
     assert mock.table.return_value.select.return_value.in_.call_count == 2
+
+
+# ── quick-win: 전세가율 경계 오탐 (round 전에 비교) ──────────────────────
+def test_jeonse_ratio_boundary_no_round_false_positive():
+    """참값이 임계값 바로 아래(0.64999)면 표시용 반올림(0.65) 때문에 오발동하면 안 된다."""
+    from lib.triggers import evaluate_jeonse_ratio
+
+    rule = {"id": "r1", "apt_seq": "A", "size_label": "84",
+            "min_jeonse_ratio": 0.65, "enabled": True, "display_name": "X"}
+    # 64999/100000 = 0.64999 < 0.65 → 미발동. round(0.64999,4)=0.65면 오발동(버그).
+    res = evaluate_jeonse_ratio(
+        rules=[rule],
+        median_sale_fn=lambda **_: (100000, 10),
+        median_jeonse_fn=lambda **_: (64999, 10),
+        today="2026-07-15",
+    )
+    assert res == []
+
+
+# ── quick-win: 비수치 excluUseAr가 배치 전체를 드롭시키지 않음 ───────────
+def test_parse_xml_tolerates_nonnumeric_area():
+    """비수치 excluUseAr('-') 1건이 ValueError로 구-월 배치 전체를 드롭시키면 안 된다."""
+    from lib.api import parse_xml
+
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<response><header><resultCode>00</resultCode></header><body><items>
+  <item><aptSeq>11000-0001</aptSeq><sggCd>11710</sggCd><excluUseAr>-</excluUseAr>
+        <dealYear>2026</dealYear><dealMonth>6</dealMonth><dealDay>10</dealDay>
+        <dealAmount>198,000</dealAmount></item>
+</items></body></response>"""
+    recs = parse_xml(xml, kind="sale")
+    assert len(recs) == 1
+    assert recs[0]["area"] == 0.0

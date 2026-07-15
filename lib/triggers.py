@@ -102,14 +102,15 @@ def evaluate_jeonse_ratio(
         if not median_sale or median_jeonse is None:
             continue
 
-        ratio = round(median_jeonse / median_sale, 4)
-        if ratio < rule["min_jeonse_ratio"]:
+        # 반올림 전 참값으로 임계 비교(경계 false positive 방지). round는 표시용으로만.
+        ratio_raw = median_jeonse / median_sale
+        if ratio_raw < rule["min_jeonse_ratio"]:
             continue
 
         candidates.append(JeonseCandidate(
             rule_id=rule["id"], rule=rule,
             dedup_key=f"jeonse:{month_key}",
-            ratio=ratio,
+            ratio=round(ratio_raw, 4),
             median_sale=median_sale,
             median_jeonse=median_jeonse,
             sample_count_sale=n_sale,
