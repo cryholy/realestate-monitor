@@ -83,10 +83,15 @@ def test_m3_migration_median_supports_any_size():
 
 # ── M4 정확성: 취소거래 제외 ─────────────────────────────────────────────
 def test_m4_cancelled_trade_no_price_candidate():
-    """cancel_date가 설정된 취소거래는 매수 알림 후보에서 제외된다."""
+    """취소거래(cancel_type='O')는 매수 알림 후보에서 제외된다.
+
+    MOLIT cdealDay가 8자리 YYYYMMDD가 아니라 cancel_date는 실제로 항상 null이므로
+    (DB 347건 취소거래 전부 cancel_date null 확인), 신뢰 가능한 신호인 cancel_type='O'로
+    필터해야 한다. cancel_date 기준 필터는 no-op이다.
+    """
     record = {"id": "c1", "apt_seq": "11000-0001", "size_label": "84",
               "price_만원": 100000, "deal_date": "2026-06-01", "floor": 10,
-              "cancel_date": "2026-06-10"}
+              "cancel_type": "O", "cancel_date": None}
     rule = {"id": "r1", "apt_seq": "11000-0001", "size_label": "84",
             "max_price_만원": 200000, "enabled": True, "display_name": "X"}
 
@@ -94,10 +99,10 @@ def test_m4_cancelled_trade_no_price_candidate():
 
 
 def test_m4_migration_median_filters_cancelled():
-    """007 마이그레이션의 매매 median RPC/MV가 취소거래를 제외한다."""
+    """007 마이그레이션의 매매 median RPC/MV가 취소거래(cancel_type='O')를 제외한다."""
     sql = SQL_007.read_text(encoding="utf-8").lower()
     norm = " ".join(sql.split())
-    assert "cancel_date is null" in norm
+    assert "cancel_type is distinct from 'o'" in norm
 
 
 # ── 007 회귀 방지: CREATE OR REPLACE / DROP+CREATE가 005·004 하드닝을 되돌리지 않는지 ──

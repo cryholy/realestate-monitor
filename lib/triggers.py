@@ -40,9 +40,11 @@ def evaluate_price_threshold(
     for record in new_sale_records:
         # price<=0(파싱 실패 fallback)은 하류 ZeroDivision을 유발하고, 취소거래는
         # 인위적 저가라 매수 알림을 오발송하므로 후보에서 제외한다.
+        # 취소 신호는 cancel_type='O'로 판정한다. cancel_date는 MOLIT cdealDay 형식이
+        # 8자리 YYYYMMDD가 아니라 항상 null이므로 신뢰할 수 없다(DB 347건 검증).
         if record.get("price_만원", 0) <= 0:
             continue
-        if record.get("cancel_date"):
+        if record.get("cancel_type") == "O":
             continue
         matching_rules = match_alert_rules(record, rules)
         for rule in matching_rules:

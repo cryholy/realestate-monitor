@@ -4,9 +4,11 @@
 -- 배경 (deep-review CONFIRMED):
 --   M3) median RPC가 size_label을 exact match해 rule.size_label='any'면 표본 0 → 항상 skip.
 --       매매 가격경로 matcher는 'any'를 지원하는데 median 경로만 비대칭이었다.
---   M4) cancel_date IS NULL 필터가 RPC/MV 전무 → 신고가후취소가 median을 오염.
---       (취소 상태 자체가 DB에 반영되려면 upsert가 DO UPDATE여야 함 — lib/db.py 참고)
--- rent_records에는 cancel_date 컬럼이 없으므로 전세 경로엔 취소 필터를 넣지 않는다.
+--   M4) 취소거래 제외 필터가 RPC/MV 전무 → 신고가후취소가 median을 오염.
+--       취소 신호는 cancel_type='O'로 판정한다. cancel_date는 MOLIT cdealDay 형식이
+--       8자리 YYYYMMDD가 아니라 항상 null이라 신뢰 불가(DB 347건 취소거래 검증).
+--       (취소 상태가 재수집 시 반영되려면 upsert가 DO UPDATE여야 함 — lib/db.py 참고)
+-- rent_records에는 취소 개념이 없으므로 전세 경로엔 취소 필터를 넣지 않는다.
 --
 -- ✅ 적용됨: 2026-07-15 프로덕션(flsbxpjywjuhylfwnrby)에 마이그레이션
 --    'cancel_filter_and_any_size_median'으로 적용 완료. 재적용 불필요.
@@ -32,7 +34,7 @@ AS $$
   FROM sale_records
   WHERE apt_seq = p_apt_seq
     AND (p_size_label = 'any' OR size_label = p_size_label)
-    AND cancel_date IS NULL
+    AND cancel_type IS DISTINCT FROM 'O'
     AND deal_date >= CURRENT_DATE - p_days;
 $$;
 
@@ -73,7 +75,7 @@ CREATE MATERIALIZED VIEW mv_monthly_sale_stats AS
     max(s."price_만원") AS max_price
    FROM (sale_records s
      LEFT JOIN districts d ON ((s.sgg_cd = d.sgg_cd)))
-  WHERE s.cancel_date IS NULL
+  WHERE s.cancel_type IS DISTINCT FROM 'O'
   GROUP BY s.apt_seq, s.apt_name, s.sgg_cd, d.name, s.size_label, (date_trunc('month'::text, (s.deal_date)::timestamp with time zone));
 
 CREATE INDEX IF NOT EXISTS idx_mv_monthly_sale ON mv_monthly_sale_stats (apt_seq, size_label, month);
