@@ -16,13 +16,24 @@ def get_client(url: str, service_role_key: str) -> Client:
 
 
 def upsert_records(client: Client, table: str, records: list[dict]) -> None:
-    """sale_records / rent_records UPSERT (id 충돌 시 무시).
+    """sale_records / rent_records UPSERT (id 충돌 시 갱신).
 
-    on_conflict='id' + ignore_duplicates=True로 ON CONFLICT DO NOTHING 동작.
+    on_conflict='id' + ignore_duplicates=False로 ON CONFLICT DO UPDATE 동작.
+    cancel_date는 record_id 해시에 포함되지 않아 취소거래가 원거래와 같은 id를
+    가지므로, DO NOTHING이면 나중에 들어온 '취소됨' 상태가 영영 반영되지 않는다.
+    median RPC의 cancel_date IS NULL 필터가 실효를 가지려면 취소 상태가 갱신돼야 한다.
+    # ponytail: 매 수집마다 재등장 record를 전량 재기록(write amplification) — 문제
+    #   되면 cancel 관련 컬럼만 갱신하는 부분 upsert로 좁힐 것.
     Cloudflare 5xx 등 일시 장애 시 지수 백오프 재시도.
     """
     if not records:
         return
+
+    # 단일 배치 내 중복 id는 ON CONFLICT DO UPDATE가 같은 행을 두 번 건드려
+    # cardinality 위반(결정적 에러)을 낸다. upsert 전에 id로 dedupe한다.
+    # 뒤에 온 레코드가 최신 상태(취소 반영 등)이므로 마지막 것을 남긴다.
+    if len(records) > 1:
+        records = list({r["id"]: r for r in records}.values())
 
     last_exc = None
     for delay in [0] + UPSERT_RETRY_BACKOFFS:
@@ -32,7 +43,7 @@ def upsert_records(client: Client, table: str, records: list[dict]) -> None:
             client.table(table).upsert(
                 records,
                 on_conflict="id",
-                ignore_duplicates=True,
+                ignore_duplicates=False,
             ).execute()
             return
         except Exception as e:
@@ -56,9 +67,15 @@ def dedup_check(client: Client, candidates: list[dict]) -> list[dict]:
     if not candidates:
         return []
 
+    # PostgREST IN 쿼리는 URL query string이라 URL 길이 한도(~8KB)에 걸린다.
+    # find_new_records와 동일하게 100건씩 chunk로 나눠 조회.
     keys = [c["dedup_key"] for c in candidates]
-    resp = client.table("alerts_sent").select("rule_id,dedup_key").in_("dedup_key", keys).execute()
-    existing = {(row["rule_id"], row["dedup_key"]) for row in (resp.data or [])}
+    BATCH = 100
+    existing: set[tuple] = set()
+    for i in range(0, len(keys), BATCH):
+        chunk = keys[i:i + BATCH]
+        resp = client.table("alerts_sent").select("rule_id,dedup_key").in_("dedup_key", chunk).execute()
+        existing.update((row["rule_id"], row["dedup_key"]) for row in (resp.data or []))
 
     return [c for c in candidates if (c["rule_id"], c["dedup_key"]) not in existing]
 

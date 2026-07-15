@@ -86,6 +86,33 @@ def test_parse_xml_rent(rent_xml):
     assert r2["monthly_rent_만원"] == 200
 
 
+def test_ymd_rejects_invalid_calendar_dates():
+    """달력상 없는 날짜(2026-02-30·2026-04-31)는 None → Postgres date 거부(INSERT 크래시) 방어.
+
+    deal_date뿐 아니라 cancel_date/register_date도 _yyyymmdd_or_none 경유로 같은 게이트를 탄다.
+    """
+    from lib.api import _ymd_or_none, _yyyymmdd_or_none
+
+    assert _ymd_or_none("2026", "02", "30") is None
+    assert _ymd_or_none("2026", "04", "31") is None
+    assert _ymd_or_none("2026", "13", "01") is None
+    assert _ymd_or_none("2026", "02", "28") == "2026-02-28"   # 실재하는 날짜는 통과
+    assert _ymd_or_none("2024", "02", "29") == "2024-02-29"   # 윤년
+    assert _yyyymmdd_or_none("20260230") is None              # cancel/register 경로
+    assert _yyyymmdd_or_none("20260610") == "2026-06-10"
+
+
+def test_parse_xml_sale_drops_invalid_deal_date():
+    """무효 달력 날짜 record는 parse_xml에서 필터링돼 DB로 넘어가지 않는다."""
+    xml = """<?xml version="1.0" encoding="UTF-8"?>
+<response><header><resultCode>00</resultCode></header><body><items>
+  <item><aptSeq>11000-0001</aptSeq><sggCd>11710</sggCd><excluUseAr>84.9</excluUseAr>
+        <dealYear>2026</dealYear><dealMonth>2</dealMonth><dealDay>30</dealDay>
+        <dealAmount>198,000</dealAmount></item>
+</items></body></response>"""
+    assert parse_xml(xml, kind="sale") == []
+
+
 def test_parse_xml_invalid_xml():
     with pytest.raises(ValueError, match="XML"):
         parse_xml("not xml", kind="sale")

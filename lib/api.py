@@ -1,10 +1,20 @@
 """국토교통부 실거래가 API 클라이언트 (매매 + 전월세)."""
 import hashlib
+import re
 import time
 import xml.etree.ElementTree as ET
+from datetime import date
 from typing import Optional
 
 import requests
+
+# serviceKey 값(인코딩/비인코딩 모두)을 로그·예외에서 마스킹. GH secret 마스킹은
+# %2B/%2F/%3D로 인코딩된 키를 놓치므로 파이썬 레벨에서 직접 제거한다.
+_SERVICE_KEY_RE = re.compile(r"(serviceKey=)[^&\s'\"()]*", re.IGNORECASE)
+
+
+def _mask_service_key(text: str) -> str:
+    return _SERVICE_KEY_RE.sub(r"\1[REDACTED]", text)
 
 from lib.matcher import compute_size_label
 
@@ -34,14 +44,19 @@ def _int_or_none(s: str) -> Optional[int]:
 
 
 def _ymd_or_none(year: str, month: str, day: str) -> Optional[str]:
-    """y/m/d 문자열 → 'YYYY-MM-DD' 또는 None (잘못된 값 방어)."""
+    """y/m/d 문자열 → 'YYYY-MM-DD' 또는 None (달력상 실재하는 날짜만 통과).
+
+    date()가 2026-02-30·2026-04-31 등 Postgres `date` 컬럼이 거부할 무효 날짜를
+    걸러낸다. deal_date·contract_date·cancel_date·register_date 네 컬럼이 모두
+    이 지점을 경유하므로 여기 한 곳만 막으면 전 date 컬럼이 방어된다.
+    """
     try:
         y, m, d = int(year), int(month), int(day)
+        if not (1900 <= y <= 2100):
+            return None
+        return date(y, m, d).isoformat()
     except (ValueError, TypeError):
         return None
-    if not (1900 <= y <= 2100 and 1 <= m <= 12 and 1 <= d <= 31):
-        return None
-    return f"{y:04d}-{m:02d}-{d:02d}"
 
 
 def _yyyymmdd_or_none(s: str) -> Optional[str]:
@@ -207,7 +222,7 @@ def _http_get(url: str, params: dict) -> str:
         except requests.RequestException as e:
             last_exc = e
             continue
-    raise RuntimeError(f"API 호출 실패 ({len(delays)}회 시도): {url} — {last_exc}")
+    raise RuntimeError(_mask_service_key(f"API 호출 실패 ({len(delays)}회 시도): {url} — {last_exc}"))
 
 
 def fetch_sales(*, lawd_cd: str, ymd: str, service_key: str) -> list[dict]:

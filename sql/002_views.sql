@@ -33,6 +33,8 @@ LEFT JOIN (SELECT DISTINCT apt_seq, apt_name, sgg_cd FROM sale_records) vc
   ON ar.apt_seq = vc.apt_seq;
 
 -- 월별 집계 MV
+-- ⚠️ 매매 MV(mv_monthly_sale_stats)와 아래 median RPC는 007_cancel_filter_and_any_size.sql이
+--    대체한다(취소거래 제외 + size_label='any' 지원). 007을 반드시 뒤이어 적용할 것.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_monthly_sale_stats AS
 SELECT
   apt_seq, apt_name, sgg_cd, size_label,

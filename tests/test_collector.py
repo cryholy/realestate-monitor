@@ -56,6 +56,30 @@ def test_persists_each_district_incrementally():
     assert len(sales) == n and len(rents) == n
 
 
+def test_persist_failure_isolated_per_district():
+    # 한 구의 persist가 던져도(upsert 재시도 소진 등) 전체가 죽지 않고 나머지 구는 계속 저장.
+    ok_saves = []
+
+    def persist(table, recs):
+        if recs[0]["apt_seq"] == DISTRICT_LAWD_CDS[0][0]:
+            raise RuntimeError("DB rejected batch (bad row)")
+        ok_saves.append((table, recs[0]["apt_seq"]))
+
+    sales, rents, aborted = collect_records(
+        "KEY", months=1,
+        persist=persist,
+        fetch_sales=lambda *, lawd_cd, ymd, service_key: [_sale(lawd_cd)],
+        fetch_rents=lambda *, lawd_cd, ymd, service_key: [_rent(lawd_cd)],
+        sleep=lambda *_: None,
+    )
+
+    assert aborted is False   # 한 배치 실패가 크래시로 번지지 않는다(요약 하트비트 생존)
+    # 첫 구(sale·rent 둘 다)만 실패, 나머지 8개 구는 sale/rent 각각 저장됐다.
+    n = len(DISTRICT_LAWD_CDS)
+    assert len(ok_saves) == (n - 1) * 2
+    assert len(sales) == n and len(rents) == n   # 수집 자체(메모리 누적)는 전량
+
+
 def test_does_not_abort_when_failures_not_consecutive():
     # sale은 항상 성공, rent만 실패 → 구마다 부분 성공이라 연속-실패 카운터가 리셋된다.
     def fail_rent(*, lawd_cd, ymd, service_key):

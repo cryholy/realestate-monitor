@@ -26,6 +26,23 @@ def test_upsert_records_calls_upsert_with_ignore(mock_supabase):
     assert kwargs.get("on_conflict") == "id"
 
 
+def test_upsert_dedupes_batch_by_id(mock_supabase):
+    """단일 배치 내 중복 id는 upsert 전에 제거(마지막=최신 유지) — ON CONFLICT cardinality 위반 방지."""
+    records = [
+        {"id": "dup", "cancel_date": None},
+        {"id": "dup", "cancel_date": "2026-06-10"},   # 나중 = 취소 반영, 이게 남아야 함
+        {"id": "uniq", "cancel_date": None},
+    ]
+    mock_supabase.table.return_value.upsert.return_value.execute.return_value.data = []
+
+    upsert_records(mock_supabase, "sale_records", records)
+
+    args, _ = mock_supabase.table.return_value.upsert.call_args
+    sent = args[0]
+    assert [r["id"] for r in sent] == ["dup", "uniq"]
+    assert next(r for r in sent if r["id"] == "dup")["cancel_date"] == "2026-06-10"
+
+
 def test_upsert_records_empty_returns_early(mock_supabase):
     upsert_records(mock_supabase, "sale_records", [])
     mock_supabase.table.assert_not_called()

@@ -38,6 +38,12 @@ def evaluate_price_threshold(
     """
     candidates: list[PriceCandidate] = []
     for record in new_sale_records:
+        # price<=0(파싱 실패 fallback)은 하류 ZeroDivision을 유발하고, 취소거래는
+        # 인위적 저가라 매수 알림을 오발송하므로 후보에서 제외한다.
+        if record.get("price_만원", 0) <= 0:
+            continue
+        if record.get("cancel_date"):
+            continue
         matching_rules = match_alert_rules(record, rules)
         for rule in matching_rules:
             if rule.get("max_price_만원") is None:

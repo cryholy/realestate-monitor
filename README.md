@@ -31,9 +31,13 @@ cp .env.example .env
 
 ### 3. SQL 마이그레이션 적용 (Supabase Studio)
 
-Studio → SQL Editor에서 순서대로 실행:
-- `sql/001_initial_schema.sql`
-- `sql/002_views.sql`
+Studio → SQL Editor에서 **반드시 아래 순서대로** 실행 (006은 004에, 005/007은 앞 단계에 의존):
+- `sql/001_initial_schema.sql` — 4개 테이블
+- `sql/002_views.sql` — view·MV·median RPC 초기본
+- `sql/004_districts_and_sgg_name.sql` — districts 테이블 + MV에 sgg_name
+- `sql/005_security_phase_a.sql` — search_path 하드닝 + MV API 노출 차단(REVOKE)
+- `sql/006_security_phase_b_rls.sql` — 전 테이블 RLS 활성화 + service_role 정책
+- `sql/007_cancel_filter_and_any_size.sql` — 매매 median RPC/MV를 취소거래 제외 + `size_label='any'` 지원으로 대체 (005의 search_path·REVOKE, 004의 sgg_name을 재명시해 유지)
 
 또는 Supabase MCP 자동 적용.
 

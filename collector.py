@@ -103,7 +103,8 @@ def collect_records(
     """9개 구 × 매매·전월세 × N개월 수집. 각 record에 id 부착.
 
     persist: 선택. callable(table_name, records) — 구 단위로 즉시 호출돼 점진 저장한다.
-             None이면 누적만 하고 저장은 호출자 몫. (DB 장애 시 예외는 그대로 전파)
+             None이면 누적만 하고 저장은 호출자 몫. persist가 던지는 예외는 구 단위로
+             격리(로그 후 계속)해 한 배치 실패가 나머지 구·요약 하트비트를 죽이지 않게 한다.
     max_consecutive_failures: 연속으로 이만큼의 구가 통째로(매매·전월세 모두) 실패하면
              외부 API 다운으로 보고 조기 종료한다. cron 타임아웃 누적을 막는 서킷 브레이커.
 
@@ -126,10 +127,15 @@ def collect_records(
             sales.extend(sale_batch)
             rents.extend(rent_batch)
             if persist is not None:
-                if sale_batch:
-                    persist("sale_records", sale_batch)
-                if rent_batch:
-                    persist("rent_records", rent_batch)
+                for table, batch in (("sale_records", sale_batch), ("rent_records", rent_batch)):
+                    if not batch:
+                        continue
+                    try:
+                        persist(table, batch)
+                    except Exception as e:
+                        logger.error(
+                            "%s 저장 실패 lawd=%s ymd=%s (이 배치 건너뜀, 나머지 구·하트비트 계속): %s",
+                            table, lawd_cd, ymd, e)
 
             if sale_ok or rent_ok:
                 consecutive_failures = 0
@@ -332,8 +338,11 @@ def main() -> int:
         # 브레이커로 끊겨도 받은 만큼은 이미 DB에 들어가 있다.
         def persist(table: str, records: list[dict]) -> None:
             target = new_sales if table == "sale_records" else new_rents
+            # 신규 식별은 read-only라 dry-run에서도 수행(후보 평가·로그에 필요).
+            # 실제 쓰기(upsert)만 dry-run에서 스킵 → backfill --dry-run과 동일 시맨틱.
             target.extend(find_new_records(client, table, records))
-            upsert_records(client, table, records)
+            if not args.dry_run:
+                upsert_records(client, table, records)
 
         logger.info("데이터 수집 시작 (직전 %d개월, %d개 구)", args.backfill_months, len(DISTRICT_LAWD_CDS))
         sales, rents, aborted = collect_records(
@@ -373,7 +382,8 @@ def main() -> int:
         except Exception as e:
             logger.error("요약 알림 발송 실패: %s", e)
 
-    refresh_materialized_views(client)
+    if not args.dry_run:
+        refresh_materialized_views(client)
 
     return 0
 

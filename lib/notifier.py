@@ -5,16 +5,18 @@ TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
 
 def format_won(만원: int) -> str:
-    """198000 만원 → '19억 8,000'."""
+    """198000 만원 → '19억 8,000'. 음수는 부호 분리 후 절대값 포맷(-5000 → '-5,000')."""
     if 만원 == 0:
         return "0"
-    억 = 만원 // 10000
-    rest = 만원 % 10000
+    sign = "-" if 만원 < 0 else ""
+    n = abs(만원)
+    억 = n // 10000
+    rest = n % 10000
     if 억 == 0:
-        return f"{rest:,}"
+        return f"{sign}{rest:,}"
     if rest == 0:
-        return f"{억}억"
-    return f"{억}억 {rest:,}"
+        return f"{sign}{억}억"
+    return f"{sign}{억}억 {rest:,}"
 
 
 def format_price_message(
