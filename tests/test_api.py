@@ -181,6 +181,6 @@ def test_fetch_rents_calls_endpoint(mock_get, rent_xml):
     records = fetch_rents(lawd_cd="11710", ymd="202603", service_key="DUMMY")
 
     args, _ = mock_get.call_args
-    url, params = args[0], args[1]
+    url = args[0]
     assert "getRTMSDataSvcAptRent" in url
     assert len(records) == 3

@@ -1,4 +1,4 @@
-from lib.matcher import compute_size_label
+from lib.matcher import compute_size_label, match_alert_rules
 
 
 def test_size_label_59():
@@ -23,9 +23,6 @@ def test_size_label_other():
     assert compute_size_label(50.0) == "other"
     assert compute_size_label(100.0) == "other"
     assert compute_size_label(85.6) == "other"
-
-
-from lib.matcher import match_alert_rules
 
 
 def test_match_apt_seq_and_size():

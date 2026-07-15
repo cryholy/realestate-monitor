@@ -33,8 +33,6 @@ from lib.notifier import (
     send_telegram,
 )
 from lib.triggers import (
-    PriceCandidate,
-    JeonseCandidate,
     evaluate_price_threshold,
     evaluate_jeonse_ratio,
 )
@@ -62,6 +60,9 @@ def setup_logging() -> None:
         format="%(asctime)s [%(levelname)s] %(message)s",
         stream=sys.stdout,
     )
+    # urllib3 DEBUG는 serviceKey 포함 전체 URL을 찍어 _mask_service_key(예외 경로만
+    # 커버)를 우회한다. 루트 레벨을 낮춰도 키가 새지 않도록 WARNING으로 고정.
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def ymd_list(months_back: int) -> list[str]:

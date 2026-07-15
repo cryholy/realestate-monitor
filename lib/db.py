@@ -19,9 +19,9 @@ def upsert_records(client: Client, table: str, records: list[dict]) -> None:
     """sale_records / rent_records UPSERT (id 충돌 시 갱신).
 
     on_conflict='id' + ignore_duplicates=False로 ON CONFLICT DO UPDATE 동작.
-    cancel_date는 record_id 해시에 포함되지 않아 취소거래가 원거래와 같은 id를
-    가지므로, DO NOTHING이면 나중에 들어온 '취소됨' 상태가 영영 반영되지 않는다.
-    median RPC의 cancel_date IS NULL 필터가 실효를 가지려면 취소 상태가 갱신돼야 한다.
+    cancel_type(취소여부)은 record_id 해시에 포함되지 않아 취소거래가 원거래와 같은
+    id를 가지므로, DO NOTHING이면 나중에 들어온 '취소됨' 상태가 영영 반영되지 않는다.
+    median RPC의 cancel_type 제외 필터가 실효를 가지려면 취소 상태가 갱신돼야 한다.
     # ponytail: 매 수집마다 재등장 record를 전량 재기록(write amplification) — 문제
     #   되면 cancel 관련 컬럼만 갱신하는 부분 upsert로 좁힐 것.
     Cloudflare 5xx 등 일시 장애 시 지수 백오프 재시도.

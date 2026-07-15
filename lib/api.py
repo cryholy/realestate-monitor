@@ -8,6 +8,8 @@ from typing import Optional
 
 import requests
 
+from lib.matcher import compute_size_label
+
 # serviceKey 값(인코딩/비인코딩 모두)을 로그·예외에서 마스킹. GH secret 마스킹은
 # %2B/%2F/%3D로 인코딩된 키를 놓치므로 파이썬 레벨에서 직접 제거한다.
 _SERVICE_KEY_RE = re.compile(r"(serviceKey=)[^&\s'\"()]*", re.IGNORECASE)
@@ -16,7 +18,6 @@ _SERVICE_KEY_RE = re.compile(r"(serviceKey=)[^&\s'\"()]*", re.IGNORECASE)
 def _mask_service_key(text: str) -> str:
     return _SERVICE_KEY_RE.sub(r"\1[REDACTED]", text)
 
-from lib.matcher import compute_size_label
 
 SALE_ENDPOINT = "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 RENT_ENDPOINT = "https://apis.data.go.kr/1613000/RTMSDataSvcAptRent/getRTMSDataSvcAptRent"
