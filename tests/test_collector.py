@@ -95,3 +95,33 @@ def test_does_not_abort_when_failures_not_consecutive():
 
     assert aborted is False
     assert len(sales) == len(DISTRICT_LAWD_CDS)   # 모든 구를 시도했다
+
+
+def test_log_egress_ip_swallows_failure(monkeypatch):
+    """진단용 IP 조회 실패가 수집 본체를 죽이지 않는다.
+
+    log_egress_ip는 main() 최상단에서 돌기 때문에, 여기서 예외가 새면
+    수집·알림 전체가 시작조차 못 한다. 부가 진단이 본체보다 중요해질 일은 없다.
+    """
+    import collector
+
+    def boom(*a, **k):
+        raise RuntimeError("network unreachable")
+
+    monkeypatch.setattr(collector.requests, "get", boom)
+    collector.log_egress_ip()   # 예외가 새어나오면 테스트 실패
+
+
+def test_log_egress_ip_logs_the_ip(monkeypatch, caplog):
+    """정상 조회 시 IP가 로그에 남는다 (성공/실패 run 대조의 근거)."""
+    import logging
+    import collector
+
+    class _Resp:
+        text = " 20.1.2.3 \n"
+
+    monkeypatch.setattr(collector.requests, "get", lambda *a, **k: _Resp())
+    with caplog.at_level(logging.INFO, logger="collector"):
+        collector.log_egress_ip()
+
+    assert "20.1.2.3" in caplog.text

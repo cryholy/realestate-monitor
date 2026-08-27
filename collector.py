@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
 
+import requests
 from dotenv import load_dotenv
 
 from lib.api import fetch_sales, fetch_rents, make_record_id
@@ -63,6 +64,21 @@ def setup_logging() -> None:
     # urllib3 DEBUG는 serviceKey 포함 전체 URL을 찍어 _mask_service_key(예외 경로만
     # 커버)를 우회한다. 루트 레벨을 낮춰도 키가 새지 않도록 WARNING으로 고정.
     logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+
+def log_egress_ip() -> None:
+    """러너의 외부 IP를 남긴다 (data.go.kr connect timeout 진단용).
+
+    성공 run과 실패 run의 IP를 대조하면 특정 대역 차단인지 확정된다.
+    ipify는 data.go.kr과 다른 호스트라, 여기는 되고 data.go.kr만 timeout이면
+    "러너 인터넷 정상 / 목적지만 차단"이 증명된다.
+    부가 진단 정보이므로 조회 실패는 무시한다.
+    """
+    try:
+        ip = requests.get("https://api.ipify.org", timeout=5).text.strip()
+        logger.info("egress IP: %s", ip)
+    except Exception as e:
+        logger.info("egress IP 조회 실패(무시): %s", e)
 
 
 def ymd_list(months_back: int) -> list[str]:
@@ -144,7 +160,7 @@ def collect_records(
                 consecutive_failures += 1
                 if consecutive_failures >= max_consecutive_failures:
                     logger.error(
-                        "연속 %d개 구 fetch 전부 실패 — 외부 API 장애로 판단, 조기 종료",
+                        "연속 %d개 구 fetch 전부 실패 — 수집 경로 이상으로 판단, 조기 종료",
                         consecutive_failures)
                     aborted = True
                     break
@@ -301,6 +317,7 @@ def main() -> int:
     args = parser.parse_args()
 
     setup_logging()
+    log_egress_ip()
 
     here = Path(__file__).parent
     if (here / ".env").exists():
@@ -350,7 +367,9 @@ def main() -> int:
         logger.info("수집 완료: 매매 %d건, 전월세 %d건", len(sales), len(rents))
         logger.info("DB 신규: 매매 %d건, 전월세 %d건", len(new_sales), len(new_rents))
         if aborted:
-            logger.warning("외부 API 장애로 일부 구만 수집하고 조기 종료했습니다")
+            logger.warning(
+                "수집 실패로 일부 구만 수집하고 조기 종료했습니다 "
+                "(API 서버 장애 / 러너 네트워크 차단 둘 다 가능 — 위 egress IP 로그 참고)")
 
     rules = load_alert_rules(client)
     logger.info("활성 알림 룰: %d개", len(rules))
@@ -373,7 +392,9 @@ def main() -> int:
         jeonse_alerts_sent=jeonse_sent,
     )
     if aborted:
-        summary = "⚠️ 외부 API 장애로 일부 구만 수집했습니다 (조기 종료)\n\n" + summary
+        summary = ("⚠️ 수집 실패 — 일부 구만 수집 (조기 종료)\n"
+                   "원인 미확정: API 서버 장애 또는 러너 네트워크 차단\n"
+                   "데이터는 다음 성공 실행에서 UPSERT로 보정됩니다\n\n") + summary
     if args.dry_run:
         logger.info("[DRY-RUN] would send summary: %s", summary.replace("\n", " | "))
     else:

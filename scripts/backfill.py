@@ -53,7 +53,7 @@ def main() -> int:
     sales, rents, aborted = collect_records(service_key, args.months)
     logger.info("수집: 매매 %d건, 전세 %d건", len(sales), len(rents))
     if aborted:
-        logger.warning("외부 API 장애로 일부만 수집하고 조기 종료 (받은 만큼만 UPSERT)")
+        logger.warning("수집 실패로 일부만 수집하고 조기 종료 (받은 만큼만 UPSERT)")
 
     if args.dry_run:
         logger.info("[DRY-RUN] UPSERT skip — 첫 5개 매매 sample:")
