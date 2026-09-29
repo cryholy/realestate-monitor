@@ -122,3 +122,30 @@ def test_fetch_requests_a_window_not_a_single_run(monkeypatch):
 
     per_page = int(parse_qs(urlparse(seen["url"]).query)["per_page"][0])
     assert per_page > 1
+
+
+def test_fetch_survives_a_malformed_run_in_the_window(monkeypatch):
+    """창 안의 손상된 항목 하나가 감시 장치 전체를 죽이면 안 된다.
+
+    파싱에서 예외가 나면 main()이 send_telegram에 도달하지 못해 알림이 한 건도
+    나가지 않는다 — 감시 장치가 조용히 죽는, 가장 나쁜 방향의 실패다.
+    창을 1건에서 10건으로 넓히면서 이 노출면도 10배가 됐다.
+    """
+    payload = {
+        "workflow_runs": [
+            {"status": "completed", "conclusion": "success"},  # created_at 없음
+            {"created_at": None, "status": "completed", "conclusion": "success"},
+            {"created_at": "not-a-timestamp", "status": "completed",
+             "conclusion": "success"},
+            {"created_at": "2026-09-28T17:06:58Z", "status": "completed",
+             "conclusion": "success"},
+        ]
+    }
+    monkeypatch.setattr(
+        healthcheck.urllib.request, "urlopen",
+        lambda req, timeout=None: _FakeResponse(payload),
+    )
+
+    latest = healthcheck.fetch_latest_scheduled_run(repo="o/r", token="t")
+
+    assert latest["created_at"] == datetime(2026, 9, 28, 17, 6, 58, tzinfo=UTC)

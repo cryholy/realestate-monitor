@@ -73,23 +73,29 @@ def fetch_latest_scheduled_run(*, repo: str, token: str) -> dict | None:
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         body = json.loads(resp.read())
-    runs = body.get("workflow_runs", [])
-    if not runs:
+    parsed = []
+    for r in body.get("workflow_runs", []):
+        try:
+            parsed.append({
+                "created_at": datetime.fromisoformat(
+                    r["created_at"].replace("Z", "+00:00")),
+                "status": r.get("status"),
+                "conclusion": r.get("conclusion"),
+            })
+        except Exception as e:
+            # 손상된 한 건을 격리한다(collector._fetch_batch와 같은 방침). 여기서
+            # 예외로 죽으면 main()이 send_telegram에 도달하지 못해 알림이 한 건도
+            # 나가지 않는다 — 감시 장치가 조용히 죽는 최악의 실패다. 창을 10건으로
+            # 넓히면서 이 노출면도 10배가 됐으므로 격리가 필수다.
+            print(f"run 파싱 실패, 건너뜀: {e!r}")
+    if not parsed:
         return None
-    parsed = [
-        {
-            "created_at": datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")),
-            "status": r.get("status"),
-            "conclusion": r.get("conclusion"),
-        }
-        for r in runs
-    ]
     latest = max(parsed, key=lambda p: p["created_at"])
     # 진단용. 다음 오탐이 나면 이 한 줄이 원인을 가른다 — 창 전체가 과거면 GitHub이
     # stale 스냅샷을 준 것이고, 최신이 섞여 있는데 0번이 아니면 정렬이 깨진 것이다.
     print(
         f"window({len(parsed)}) "
-        f"{[p['created_at'].strftime('%m-%d %H:%M') for p in parsed]} "
+        f"{[p['created_at'].strftime('%Y-%m-%d %H:%M') for p in parsed]} "
         f"→ latest={latest['created_at'].isoformat()}"
     )
     return latest
@@ -143,7 +149,7 @@ def build_alert_text(verdict: str, latest: dict | None, delta_h: float | None, *
         delay_str = humanize_delta(delta_h)
         return (
             f"🚨 부동산 데이터 수집이 {delay_str}째 트리거되지 않았어요\n\n"
-            "매일 18:00에 돌아야 할 자동 수집이 멈춘 상태입니다.\n"
+            "매일 18:00경 돌아야 할 자동 수집이 멈춘 상태입니다.\n"
             f"(허용 지연: {humanize_delta(STALE_THRESHOLD_HOURS)})\n\n"
             f"마지막 실행  {last_kst}\n"
             f"현재         {now_kst}\n\n"
