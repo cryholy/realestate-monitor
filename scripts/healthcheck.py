@@ -14,6 +14,7 @@ GitHub Actions의 schedule은 정시 보장이 없어 매 실행이 수 시간�
 import json
 import os
 import sys
+import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -31,11 +32,17 @@ KST = timezone(timedelta(hours=9))
 # 이 값은 오탐 방지를 위해 넉넉히 둔다.
 STALE_THRESHOLD_HOURS = 36
 
-# run을 한 건만 받으면 그 한 건이 정말 최신인지 검증할 방법이 없다. 2026-09-23·09-28에
-# 러너가 받은 응답의 0번은 9일·14일 전 run이었고(로컬 재현 불가, GitHub 측 원인 미확정)
-# 그대로 믿어 verdict=stale 오탐을 냈다. 창을 두고 max를 취하면 정렬이 깨진 응답에
-# 면역이 된다. 10건이면 일 1회 cadence로 10일치.
+# run을 한 건만 받으면 그 한 건이 정말 최신인지 검증할 방법이 없다. 창을 두고 max를
+# 취하면 정렬이 깨진 응답에 면역이고, 무엇보다 받은 창 전체를 로그로 남길 수 있다.
+# 2026-09-29 그 로그가 오탐의 실체를 밝혔다 — 정렬이 깨진 게 아니라 '부분 결과'였다
+# (아래 BAD_VERDICT_RETRIES 참조). 10건이면 일 1회 cadence로 10일치.
 RUNS_WINDOW = 10
+
+# 나쁜 소식(ok가 아닌 판정)은 알리기 전에 재조회로 확인한다. 근거는 assess_health 참조.
+# ponytail: 2회×10초는 관측 표본이 적어 잡은 값이다. 워크플로 timeout은 5분이라
+# 여유가 크다 — 오탐이 남으면 먼저 이 두 값을 올린다.
+BAD_VERDICT_RETRIES = 2
+BAD_VERDICT_RETRY_DELAY_S = 10
 
 
 def humanize_delta(delta_h: float) -> str:
@@ -91,8 +98,9 @@ def fetch_latest_scheduled_run(*, repo: str, token: str) -> dict | None:
     if not parsed:
         return None
     latest = max(parsed, key=lambda p: p["created_at"])
-    # 진단용. 다음 오탐이 나면 이 한 줄이 원인을 가른다 — 창 전체가 과거면 GitHub이
-    # stale 스냅샷을 준 것이고, 최신이 섞여 있는데 0번이 아니면 정렬이 깨진 것이다.
+    # 진단용. 부분 결과가 얼마나 자주·어떤 모양으로 오는지는 이 로그로만 알 수 있다.
+    # 정상이면 연속된 일자가 나오고, 부분 결과면 구간이 통째로 빠진 채 내림차순만
+    # 지켜진 창이 나온다. 재조회 로그와 같이 보면 빈도까지 집계된다. 지우지 말 것.
     print(
         f"window({len(parsed)}) "
         f"{[p['created_at'].strftime('%Y-%m-%d %H:%M') for p in parsed]} "
@@ -126,6 +134,41 @@ def evaluate_health(
         return ("failed", delta_h)
 
     return ("ok", delta_h)
+
+
+def assess_health(
+    *,
+    repo: str,
+    token: str,
+    fetch=fetch_latest_scheduled_run,
+    now_fn=None,
+    sleep=time.sleep,
+) -> tuple[dict | None, str, float | None]:
+    """조회 → 판정. ok가 아니면 재조회로 확인한 뒤 최종 판정을 돌려준다.
+
+    GitHub이 run 목록을 '부분 결과'로 돌려주는 일이 있다(2026-09-23·28·29 관측).
+    정렬도 필드도 정상이고 일부 구간만 통째로 빠져 있어, 응답만 보고는 진짜 트리거
+    누락과 구분할 방법이 없다. 다만 요청 단위로 발생해서 — 같은 코드·토큰으로
+    2시간 간격 두 번 중 한 번만 재현됐다 — 재조회하면 대개 해소된다.
+
+    정상 경로에는 비용이 0이고, 진짜 장애 감지는 최대 RETRIES×DELAY초 늦어질 뿐이다.
+
+    반환: (latest, verdict, delta_h)
+    """
+    now_fn = now_fn or (lambda: datetime.now(timezone.utc))
+    for attempt in range(BAD_VERDICT_RETRIES + 1):
+        if attempt:
+            sleep(BAD_VERDICT_RETRY_DELAY_S)
+        latest = fetch(repo=repo, token=token)
+        verdict, delta_h = evaluate_health(
+            latest, now=now_fn(), threshold_hours=STALE_THRESHOLD_HOURS)
+        if verdict == "ok":
+            if attempt:
+                print(f"재조회 {attempt}회 만에 정상 — 직전 판정은 부분 응답이었다")
+            return latest, verdict, delta_h
+        if attempt < BAD_VERDICT_RETRIES:
+            print(f"판정={verdict} — 알리기 전 재조회 {attempt + 1}/{BAD_VERDICT_RETRIES}")
+    return latest, verdict, delta_h
 
 
 def build_alert_text(verdict: str, latest: dict | None, delta_h: float | None, *, now: datetime, repo: str) -> str:
@@ -175,10 +218,8 @@ def main() -> int:
     bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
     chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
-    latest = fetch_latest_scheduled_run(repo=repo, token=gh_token)
+    latest, verdict, delta_h = assess_health(repo=repo, token=gh_token)
     now = datetime.now(timezone.utc)
-
-    verdict, delta_h = evaluate_health(latest, now=now, threshold_hours=STALE_THRESHOLD_HOURS)
 
     if verdict == "ok":
         print(f"OK latest={latest} delta_h={delta_h} threshold={STALE_THRESHOLD_HOURS}")

@@ -149,3 +149,95 @@ def test_fetch_survives_a_malformed_run_in_the_window(monkeypatch):
     latest = healthcheck.fetch_latest_scheduled_run(repo="o/r", token="t")
 
     assert latest["created_at"] == datetime(2026, 9, 28, 17, 6, 58, tzinfo=UTC)
+
+
+def test_bad_verdict_is_reconfirmed_before_alerting():
+    """나쁜 소식은 알리기 전에 재조회로 확인한다.
+
+    2026-09-23·28·29 오탐의 실체는 GitHub이 run 목록을 '부분 결과'로 돌려주는
+    것이었다. 정렬도 필드도 정상이라 응답만 보고는 진짜 트리거 누락과 구분할 수
+    없다. 다만 요청 단위로 발생하므로 재조회하면 대개 해소된다.
+    """
+    results = [_run(352), _run(12)]  # 1차 부분결과 → stale, 2차 정상 → ok
+    calls = []
+
+    def fake_fetch(*, repo, token):
+        calls.append(1)
+        return results.pop(0)
+
+    _, verdict, _ = healthcheck.assess_health(
+        repo="o/r", token="t", fetch=fake_fetch,
+        now_fn=lambda: NOW, sleep=lambda _s: None,
+    )
+
+    assert verdict == "ok"
+    assert len(calls) == 2
+
+
+def test_main_does_not_alert_when_requery_clears_the_verdict(monkeypatch):
+    """전체 경로 회귀 방지 — 재조회가 main()에 실제로 배선돼 있는가.
+
+    assess_health를 main()이 쓰지 않으면 재조회는 프로덕션에서 무효가 되는데,
+    단위 테스트만으로는 그 퇴행이 잡히지 않는다. per_page=1 때와 같은 함정이다.
+    """
+    now = datetime.now(timezone.utc)
+
+    def _payload(hours_ago):
+        ts = (now - timedelta(hours=hours_ago)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        return {"workflow_runs": [
+            {"created_at": ts, "status": "completed", "conclusion": "success"},
+        ]}
+
+    payloads = [_payload(352), _payload(12)]  # 1차 부분결과 → stale, 2차 정상
+    sent = []
+
+    monkeypatch.setattr(healthcheck, "send_telegram", lambda **kw: sent.append(kw))
+    monkeypatch.setattr(healthcheck, "BAD_VERDICT_RETRY_DELAY_S", 0)
+    monkeypatch.setattr(
+        healthcheck.urllib.request, "urlopen",
+        lambda req, timeout=None: _FakeResponse(payloads.pop(0)),
+    )
+    for key, value in {
+        "GITHUB_REPOSITORY": "o/r", "GH_TOKEN": "t",
+        "TELEGRAM_BOT_TOKEN": "b", "TELEGRAM_CHAT_ID": "c",
+    }.items():
+        monkeypatch.setenv(key, value)
+
+    rc = healthcheck.main()
+
+    assert sent == [], "재조회로 해소된 판정에 알림이 나갔다"
+    assert rc == 0
+
+
+def test_persistent_bad_verdict_still_alerts():
+    """재조회가 진짜 장애를 삼키면 안 된다 — 전부 stale이면 그대로 알린다."""
+    calls = []
+
+    def fake_fetch(*, repo, token):
+        calls.append(1)
+        return _run(352)
+
+    _, verdict, _ = healthcheck.assess_health(
+        repo="o/r", token="t", fetch=fake_fetch,
+        now_fn=lambda: NOW, sleep=lambda _s: None,
+    )
+
+    assert verdict == "stale"
+    assert len(calls) == 1 + healthcheck.BAD_VERDICT_RETRIES
+
+
+def test_ok_verdict_does_not_requery():
+    """정상 경로는 비용이 0이어야 한다 — 매일 도는 감시에 API 호출을 3배로 쓰지 않는다."""
+    calls = []
+
+    def fake_fetch(*, repo, token):
+        calls.append(1)
+        return _run(12)
+
+    _, verdict, _ = healthcheck.assess_health(
+        repo="o/r", token="t", fetch=fake_fetch,
+        now_fn=lambda: NOW, sleep=lambda _s: None,
+    )
+
+    assert verdict == "ok"
+    assert len(calls) == 1
