@@ -31,6 +31,12 @@ KST = timezone(timedelta(hours=9))
 # 이 값은 오탐 방지를 위해 넉넉히 둔다.
 STALE_THRESHOLD_HOURS = 36
 
+# run을 한 건만 받으면 그 한 건이 정말 최신인지 검증할 방법이 없다. 2026-09-23·09-28에
+# 러너가 받은 응답의 0번은 9일·14일 전 run이었고(로컬 재현 불가, GitHub 측 원인 미확정)
+# 그대로 믿어 verdict=stale 오탐을 냈다. 창을 두고 max를 취하면 정렬이 깨진 응답에
+# 면역이 된다. 10건이면 일 1회 cadence로 10일치.
+RUNS_WINDOW = 10
+
 
 def humanize_delta(delta_h: float) -> str:
     """0.5 → '30분', 24.5 → '24시간 30분'."""
@@ -49,10 +55,13 @@ def fetch_latest_scheduled_run(*, repo: str, token: str) -> dict | None:
     status 필터를 걸지 않아 in_progress / 실패 / 취소 run도 포함한다(최신 상태를
     그대로 봐야 conclusion을 판정할 수 있다). 반환: {created_at, status, conclusion}
     또는 run이 없으면 None.
+
+    API가 created_at 내림차순으로 준다고 신뢰하지 않는다 — RUNS_WINDOW건을 받아
+    max를 취한다. 근거는 RUNS_WINDOW 주석 참조.
     """
     url = (
         f"https://api.github.com/repos/{repo}/actions/workflows/{WORKFLOW_FILE}/runs"
-        f"?event=schedule&per_page=1"
+        f"?event=schedule&per_page={RUNS_WINDOW}"
     )
     req = urllib.request.Request(
         url,
@@ -67,12 +76,23 @@ def fetch_latest_scheduled_run(*, repo: str, token: str) -> dict | None:
     runs = body.get("workflow_runs", [])
     if not runs:
         return None
-    run = runs[0]
-    return {
-        "created_at": datetime.fromisoformat(run["created_at"].replace("Z", "+00:00")),
-        "status": run.get("status"),
-        "conclusion": run.get("conclusion"),
-    }
+    parsed = [
+        {
+            "created_at": datetime.fromisoformat(r["created_at"].replace("Z", "+00:00")),
+            "status": r.get("status"),
+            "conclusion": r.get("conclusion"),
+        }
+        for r in runs
+    ]
+    latest = max(parsed, key=lambda p: p["created_at"])
+    # 진단용. 다음 오탐이 나면 이 한 줄이 원인을 가른다 — 창 전체가 과거면 GitHub이
+    # stale 스냅샷을 준 것이고, 최신이 섞여 있는데 0번이 아니면 정렬이 깨진 것이다.
+    print(
+        f"window({len(parsed)}) "
+        f"{[p['created_at'].strftime('%m-%d %H:%M') for p in parsed]} "
+        f"→ latest={latest['created_at'].isoformat()}"
+    )
+    return latest
 
 
 def evaluate_health(
