@@ -2,7 +2,9 @@ name: realestate_monitor healthcheck
 
 on:
   schedule:
-    # 18:30 KST = 09:30 UTC (main cron 18:00 KST의 30분 후)
+    # 09:30 UTC = 18:30 KST. "monitor의 30분 후"라는 원래 의도는 성립하지 않는다 —
+    # 이 워크플로 역시 동일하게 수 시간 지연돼 랜덤한 시각에 뜬다. 실제 판정은 시각이
+    # 아니라 STALE_THRESHOLD_HOURS(36h) 창이 담당하므로 값 자체는 무해하다.
     - cron: "30 9 * * *"
   workflow_dispatch:
 

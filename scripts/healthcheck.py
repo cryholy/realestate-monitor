@@ -110,7 +110,7 @@ def build_alert_text(verdict: str, latest: dict | None, delta_h: float | None, *
     if verdict == "never":
         return (
             "🚨 부동산 데이터 자동 수집이 한 번도 동작하지 않았어요\n\n"
-            "매일 18:00에 자동 실행되도록 cron이 설정되어 있지만,\n"
+            "매일 18:00경 실행되도록 cron이 설정되어 있지만,\n"
             "실제로 자동 트리거된 기록이 없습니다.\n"
             f"(수동 실행은 별개. 확인 시각: {now_kst})\n\n"
             "▶︎ 점검\n"

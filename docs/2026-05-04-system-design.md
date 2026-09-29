@@ -31,7 +31,7 @@
 ```
 ┌─────────────────────────────────────────────────┐
 │ GitHub Actions  (private repo)                  │
-│ cron: 0 9 * * *  (UTC) = 매일 18:00 KST          │
+│ cron: 23 4 * * * (UTC) = 목표 18:00 KST         │
 └──────────────┬──────────────────────────────────┘
                │ runner spawn (Ubuntu)
                ▼
@@ -362,7 +362,7 @@ for ymd in [202504..202405]:
 ### 3.2 일일 운영 (cron)
 
 ```
-[GitHub Actions cron: 0 9 * * * UTC = 매일 18:00 KST]
+[GitHub Actions cron: 23 4 * * * UTC → 실행 목표 18:00 KST]
         ↓
 runner spawn → git checkout → pip install
         ↓
